@@ -1,5 +1,6 @@
 import { X, CreditCard, MapPin, User, Phone, Loader2 } from "lucide-react";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export function CheckoutModal({
   isOpen,
@@ -25,12 +26,12 @@ export function CheckoutModal({
     e.preventDefault();
 
     if (!user || !user.id) {
-      alert("Vui lòng đăng nhập để đặt hàng");
+      toast.error("Vui lòng đăng nhập để đặt hàng");
       return;
     }
 
     if (cart.length === 0) {
-      alert("Giỏ hàng trống. Vui lòng thêm sản phẩm trước khi đặt hàng.");
+      toast.error("Giỏ hàng trống. Vui lòng thêm sản phẩm trước khi đặt hàng.");
       return;
     }
 

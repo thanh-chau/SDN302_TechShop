@@ -16,6 +16,7 @@ import { AdminPage } from "./pages/AdminPage";
 import { StaffPage } from "./pages/StaffPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PaymentReturnPage } from "./pages/PaymentReturnPage";
+import toast from "react-hot-toast";
 import { productAPI, cartAPI, orderAPI, fileAPI } from "./utils/api";
 
 export default function App() {
@@ -186,10 +187,11 @@ export default function App() {
         }));
         setCart(transformedCart);
       }
+      toast.success("Đã thêm vào giỏ hàng");
       setCartOpen(true);
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      alert("Không thể thêm vào giỏ hàng: " + error.message);
+      toast.error("Không thể thêm vào giỏ hàng: " + error.message);
     }
   };
 
@@ -206,7 +208,7 @@ export default function App() {
       setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
     } catch (error) {
       console.error("Failed to remove from cart:", error);
-      alert("Không thể xóa khỏi giỏ hàng: " + error.message);
+      toast.error("Không thể xóa khỏi giỏ hàng: " + error.message);
     }
   };
 
@@ -250,7 +252,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("Failed to update quantity:", error);
-      alert("Không thể cập nhật số lượng: " + error.message);
+      toast.error("Không thể cập nhật số lượng: " + error.message);
     }
   };
 
@@ -311,12 +313,12 @@ export default function App() {
 
   const handleOrderComplete = async (paymentMethod = "cod") => {
     if (!user || !user.id) {
-      alert("Vui lòng đăng nhập để đặt hàng");
+      toast.error("Vui lòng đăng nhập để đặt hàng");
       return;
     }
 
     if (cart.length === 0) {
-      alert(
+      toast.error(
         "Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng trước khi đặt hàng.",
       );
       return;
@@ -336,8 +338,8 @@ export default function App() {
         !backendCart.cartItems ||
         backendCart.cartItems.length === 0
       ) {
-        alert(
-          "Giỏ hàng backend trống. Vui lòng thêm sản phẩm vào giỏ hàng lại.",
+        toast.error(
+          "Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng lại.",
         );
         // Try to sync cart
         console.log("Attempting to reload cart...");
@@ -366,10 +368,9 @@ export default function App() {
 
           if (checkoutResponse.resultCode === 0 && checkoutResponse.payUrl) {
             // Success - redirect to MoMo payment page
-            alert(
-              `✅ Đơn hàng #${createdOrder.id} đã được tạo!\n\n` +
-                `💰 Tổng tiền: ${createdOrder.totalAmount?.toLocaleString("vi-VN")}₫\n\n` +
-                `🔄 Bạn sẽ được chuyển đến trang thanh toán MoMo...`,
+            toast.success(
+              `Đơn #${createdOrder.id} đã tạo. Chuyển đến thanh toán MoMo...`,
+              { duration: 5000 },
             );
 
             // Redirect to MoMo
@@ -382,10 +383,9 @@ export default function App() {
           }
         } catch (momoError) {
           console.error("MoMo payment failed:", momoError);
-          alert(
-            `⚠️ Không thể tạo thanh toán MoMo: ${momoError.message}\n\n` +
-              `Đơn hàng #${createdOrder.id} vẫn được tạo nhưng chưa thanh toán.\n` +
-              `Bạn có thể thanh toán sau hoặc liên hệ hỗ trợ.`,
+          toast.error(
+            `Không thể tạo thanh toán MoMo: ${momoError.message}. Đơn #${createdOrder.id} vẫn được tạo.`,
+            { duration: 5000 },
           );
         }
       }
@@ -425,17 +425,13 @@ export default function App() {
       const totalAmount =
         createdOrder.totalAmount?.toLocaleString("vi-VN") || "0";
 
-      alert(
-        `✅ Đơn hàng đã được tạo thành công!\n\n` +
-          `📦 Mã đơn hàng: #${createdOrder.id}\n` +
-          `💰 Tổng tiền: ${totalAmount}₫\n` +
-          `📌 Trạng thái: ${statusText}\n` +
-          `💳 Thanh toán: ${paymentMethod === "cod" ? "COD (Thanh toán khi nhận hàng)" : "Chưa thanh toán"}\n\n` +
-          `${createdOrder.status === "pending" ? '⏳ Đơn hàng đang chờ xác nhận.\nBạn có thể theo dõi đơn hàng trong mục "Đơn hàng của tôi".' : ""}`,
+      toast.success(
+        `Đơn hàng #${createdOrder.id} đã tạo. Tổng: ${totalAmount}₫ - ${statusText}`,
+        { duration: 5000 },
       );
     } catch (error) {
       console.error("Failed to create order:", error);
-      alert("Không thể đặt hàng: " + error.message);
+      toast.error("Không thể đặt hàng: " + error.message);
       throw error; // Re-throw to let CheckoutModal handle it
     }
   };

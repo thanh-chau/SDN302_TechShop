@@ -10,6 +10,9 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var userRoutes = require('./routes/userRoutes');
 var authRouter = require('./routes/auth');
+var uploadRouter = require('./routes/upload');
+var productsRouter = require('./routes/products');
+var cartRouter = require('./routes/cart');
 
 connectDB();
 
@@ -26,11 +29,15 @@ app.use(cookieParser());
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRouter);
+app.use('/api/files', uploadRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/cart', cartRouter);
 
 app.use(notFound);
 app.use(errorHandler);
