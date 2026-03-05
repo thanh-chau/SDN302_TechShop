@@ -20,6 +20,7 @@ import {
   Shield,
   AlertCircle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { productAPI, orderAPI, userAPI, fileAPI, authAPI } from "../utils/api";
 
 export function AdminPage({ user, onLogout }) {
@@ -87,7 +88,7 @@ export function AdminPage({ user, onLogout }) {
         userForm.fullName,
         userForm.role,
       );
-      alert(`Đã tạo tài khoản ${userForm.role} thành công!`);
+      toast.success(`Đã tạo tài khoản ${userForm.role} thành công!`);
       setShowUserForm(false);
       await loadUsers();
     } catch (error) {
@@ -214,13 +215,13 @@ export function AdminPage({ user, onLogout }) {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Vui lòng chọn file hình ảnh!");
+      toast.error("Vui lòng chọn file hình ảnh!");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("Kích thước file tối đa 5MB!");
+      toast.error("Kích thước file tối đa 5MB!");
       return;
     }
 
@@ -235,13 +236,13 @@ export function AdminPage({ user, onLogout }) {
       // Set the uploaded image URL to form
       if (uploadResult && uploadResult.url) {
         setProductForm({ ...productForm, imgUrl: uploadResult.url });
-        alert("Upload ảnh thành công!");
+        toast.success("Upload ảnh thành công!");
       } else {
         throw new Error("Không nhận được URL từ server");
       }
     } catch (error) {
       console.error("Image upload failed:", error);
-      alert("Không thể upload ảnh: " + error.message);
+      toast.error("Không thể upload ảnh: " + error.message);
       setSelectedImageFile(null);
     } finally {
       setUploadingImage(false);
@@ -270,14 +271,14 @@ export function AdminPage({ user, onLogout }) {
         console.log("Updating product with data:", updateData);
         const result = await productAPI.update(updateData);
         console.log("Update result:", result);
-        alert(
-          'Đã cập nhật sản phẩm!\n\nLưu ý: Bộ lọc danh mục đã được đặt về "Tất cả" để bạn có thể thấy sản phẩm vừa cập nhật.',
+        toast.success(
+          'Đã cập nhật sản phẩm! Bộ lọc danh mục đã được đặt về "Tất cả".',
         );
       } else {
         console.log("Creating new product with data:", productData);
         const result = await productAPI.create(productData);
         console.log("Create result:", result);
-        alert("Đã thêm sản phẩm mới!");
+        toast.success("Đã thêm sản phẩm mới!");
       }
 
       // Reset category filter to "all" to show updated product
@@ -288,7 +289,7 @@ export function AdminPage({ user, onLogout }) {
       handleCloseProductForm();
     } catch (error) {
       console.error("Error saving product:", error);
-      alert("Không thể lưu sản phẩm: " + error.message);
+      toast.error("Không thể lưu sản phẩm: " + error.message);
     }
   };
 
@@ -300,9 +301,9 @@ export function AdminPage({ user, onLogout }) {
       if (!product) throw new Error("Không tìm thấy sản phẩm");
       await productAPI.delete(product);
       await loadProducts();
-      alert("Đã xóa sản phẩm!");
+      toast.success("Đã xóa sản phẩm!");
     } catch (error) {
-      alert("Không thể xóa sản phẩm: " + error.message);
+      toast.error("Không thể xóa sản phẩm: " + error.message);
     }
   };
 
@@ -311,7 +312,7 @@ export function AdminPage({ user, onLogout }) {
       await orderAPI.updateStatus(orderId, newStatus);
       await loadOrders();
     } catch (error) {
-      alert("Không thể cập nhật trạng thái: " + error.message);
+      toast.error("Không thể cập nhật trạng thái: " + error.message);
     }
   };
 
@@ -322,7 +323,7 @@ export function AdminPage({ user, onLogout }) {
       await orderAPI.delete(orderId);
       await loadOrders();
     } catch (error) {
-      alert("Không thể xóa đơn hàng: " + error.message);
+      toast.error("Không thể xóa đơn hàng: " + error.message);
     }
   };
 
