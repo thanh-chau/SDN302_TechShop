@@ -2,21 +2,26 @@ import { X, Mail, Lock, Eye, EyeOff, AlertCircle, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { authAPI } from "../utils/api";
 
+const MODE = { LOGIN: "login", REGISTER: "register", FORGOT: "forgot", RESET: "reset" };
+
 export function AuthModal({ isOpen, onClose, onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState(MODE.LOGIN);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
-    role: "BUYER",
+    role: "buyer",
+    resetToken: "",
+    newPassword: "",
   });
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockEndTime, setLockEndTime] = useState(null);
   const [remainingTime, setRemainingTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   // Check if account is locked on mount
   useEffect(() => {
@@ -68,83 +73,90 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
       return;
     }
 
-    // Validate password length for registration
-    if (!isLogin && formData.password.length < 6) {
+    // Forgot: request reset token
+    if (mode === MODE.FORGOT) {
+      if (!formData.email.trim()) {
+        setErrorMessage("Vui lòng nhập email.");
+        return;
+      }
+      try {
+        setErrorMessage("");
+        const res = await authAPI.forgotPassword(formData.email);
+        setForgotSuccess(true);
+        setFormData((prev) => ({ ...prev, resetToken: res.resetToken || "" }));
+      } catch (err) {
+        setErrorMessage(err.message || "Không tìm thấy tài khoản với email này.");
+      }
+      return;
+    }
+
+    // Reset: submit new password with token
+    if (mode === MODE.RESET) {
+      if (!formData.resetToken.trim() || !formData.newPassword || formData.newPassword.length < 6) {
+        setErrorMessage("Vui lòng dán mã đặt lại và nhập mật khẩu mới (ít nhất 6 ký tự).");
+        return;
+      }
+      try {
+        setErrorMessage("");
+        await authAPI.resetPassword(formData.resetToken, formData.newPassword);
+        setForgotSuccess(false);
+        setMode(MODE.LOGIN);
+        setFormData((prev) => ({ ...prev, resetToken: "", newPassword: "" }));
+        setErrorMessage("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập.");
+      } catch (err) {
+        setErrorMessage(err.message || "Mã đặt lại không hợp lệ hoặc đã hết hạn.");
+      }
+      return;
+    }
+
+    if (mode === MODE.REGISTER && formData.password.length < 6) {
       setErrorMessage("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
 
+    const buildUserInfo = (response) => {
+      const u = response.user || response;
+      const name = u.name || u.fullName || u.email;
+      return {
+        id: u.id || u._id,
+        name,
+        email: u.email,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ef4444&color=fff`,
+        role: (u.role || "buyer").toLowerCase(),
+        token: response.token,
+      };
+    };
+
     try {
       setErrorMessage("");
-
-      if (isLogin) {
-        // Login with real API
+      if (mode === MODE.LOGIN) {
         const response = await authAPI.login(formData.email, formData.password);
-
-        // AuthResponseDTO: { id, email, fullName, role, message }
-        const userInfo = {
-          id: response.id,
-          name: response.fullName,
-          email: response.email,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(response.fullName)}&background=ef4444&color=fff`,
-          role: response.role.toLowerCase(), // Ensure lowercase: ADMIN -> admin, STAFF -> staff
-        };
-
-        // Save to localStorage
+        const userInfo = buildUserInfo(response);
+        if (response.token) userInfo.token = response.token;
         localStorage.setItem("user", JSON.stringify(userInfo));
-
-        // Reset login attempts on successful login
         setLoginAttempts(0);
-        setErrorMessage("");
         localStorage.removeItem("loginLock");
-
         onLogin(userInfo);
         onClose();
-
-        // Reset form
-        setFormData({ email: "", password: "", name: "", role: "BUYER" });
+        setFormData({ email: "", password: "", name: "", role: "buyer", resetToken: "", newPassword: "" });
       } else {
-        // Register with real API
-        console.log("Registering user with:", {
-          email: formData.email,
-          fullName: formData.name,
-          role: formData.role,
-          passwordLength: formData.password.length,
-        });
-
         const response = await authAPI.register(
           formData.email,
           formData.password,
           formData.name,
-          formData.role, // User-selected role
+          formData.role,
         );
-
-        // AuthResponseDTO: { id, email, fullName, role, message }
-        const userInfo = {
-          id: response.id,
-          name: response.fullName,
-          email: response.email,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(response.fullName)}&background=ef4444&color=fff`,
-          role: response.role.toLowerCase(),
-        };
-
-        // Save to localStorage
+        const userInfo = buildUserInfo(response);
+        if (response.token) userInfo.token = response.token;
         localStorage.setItem("user", JSON.stringify(userInfo));
-
-        // Reset login attempts on successful registration
         setLoginAttempts(0);
-        setErrorMessage("");
         localStorage.removeItem("loginLock");
-
         onLogin(userInfo);
         onClose();
-
-        // Reset form
-        setFormData({ email: "", password: "", name: "", role: "BUYER" });
+        setFormData({ email: "", password: "", name: "", role: "buyer", resetToken: "", newPassword: "" });
       }
     } catch (error) {
-      // Handle API errors
-      if (isLogin) {
+      if (mode === MODE.LOGIN) {
         const newAttempts = loginAttempts + 1;
         setLoginAttempts(newAttempts);
 
@@ -185,7 +197,6 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
         }
 
         setErrorMessage(errorMsg);
-        console.error("Registration error:", error);
       }
     }
   };
@@ -216,11 +227,6 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
     onClose();
   };
 
-  const handleToggleMode = () => {
-    setIsLogin(!isLogin);
-    setErrorMessage(""); // Clear error when switching modes
-  };
-
   return (
     <>
       {/* Overlay */}
@@ -244,7 +250,10 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              {isLogin ? "Đăng nhập" : "Đăng ký"}
+              {mode === MODE.LOGIN && "Đăng nhập"}
+              {mode === MODE.REGISTER && "Đăng ký"}
+              {mode === MODE.FORGOT && "Quên mật khẩu"}
+              {mode === MODE.RESET && "Đặt lại mật khẩu"}
             </h2>
           </div>
 
@@ -279,7 +288,68 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
+            {/* Forgot: only email */}
+            {mode === MODE.FORGOT && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-red-500"
+                    placeholder="example@email.com"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Nhập email để nhận mã đặt lại mật khẩu (mã hiển thị ngay sau khi gửi).</p>
+              </div>
+            )}
+            {mode === MODE.FORGOT && forgotSuccess && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
+                Mã đặt lại đã được tạo. Sao chép mã bên dưới rồi bấm &quot;Đặt lại mật khẩu&quot; để nhập mã và mật khẩu mới.
+                {formData.resetToken && (
+                  <p className="mt-2 font-mono text-xs break-all bg-white p-2 rounded">{formData.resetToken}</p>
+                )}
+                <button type="button" onClick={() => { setMode(MODE.RESET); setErrorMessage(""); }} className="mt-3 w-full py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700">
+                  Đặt lại mật khẩu
+                </button>
+              </div>
+            )}
+            {/* Reset: token + new password */}
+            {mode === MODE.RESET && (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mã đặt lại</label>
+                  <input
+                    type="text"
+                    value={formData.resetToken}
+                    onChange={(e) => setFormData({ ...formData, resetToken: e.target.value })}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-red-500"
+                    placeholder="Dán mã nhận được sau bước quên mật khẩu"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mật khẩu mới</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.newPassword}
+                      onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                      className="w-full pl-12 pr-12 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-red-500"
+                      placeholder="Ít nhất 6 ký tự"
+                      minLength={6}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+            {mode === MODE.REGISTER && (
               <>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -293,7 +363,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
                     }
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-red-500 transition-colors"
                     placeholder="Nhập họ và tên"
-                    required={!isLogin}
+                    required
                   />
                 </div>
               </>
@@ -332,7 +402,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
                   }
                   className="w-full pl-12 pr-12 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-red-500 transition-colors"
                   placeholder="••••••••"
-                  minLength={isLogin ? undefined : 6}
+                  minLength={mode === MODE.REGISTER ? 6 : undefined}
                   required
                 />
                 <button
@@ -347,7 +417,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
                   )}
                 </button>
               </div>
-              {!isLogin &&
+              {mode === MODE.REGISTER &&
                 formData.password &&
                 formData.password.length < 6 && (
                   <p className="text-xs text-red-600 mt-1">
@@ -356,7 +426,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
                 )}
             </div>
 
-            {isLogin && (
+            {mode === MODE.LOGIN && (
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -371,6 +441,7 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
                 </label>
                 <button
                   type="button"
+                  onClick={() => { setMode(MODE.FORGOT); setErrorMessage(""); }}
                   className="text-sm text-red-600 hover:text-red-700 font-semibold"
                 >
                   Quên mật khẩu?
@@ -389,26 +460,31 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
             >
               {isLocked
                 ? `Bị khóa (${Math.floor(remainingTime / 60)}:${String(remainingTime % 60).padStart(2, "0")})`
-                : isLogin
-                  ? "Đăng nhập"
-                  : "Đăng ký"}
+                : (mode === MODE.LOGIN && "Đăng nhập") || (mode === MODE.REGISTER && "Đăng ký") || (mode === MODE.FORGOT && "Gửi mã đặt lại") || (mode === MODE.RESET && "Đặt lại mật khẩu")}
             </button>
           </form>
 
           {/* Toggle */}
-          <div className="mt-6 text-center">
-            <span className="text-sm text-gray-600">
-              {isLogin ? "Chưa có tài khoản? " : "Đã có tài khoản? "}
-            </span>
-            <button
-              onClick={handleToggleMode}
-              className="text-sm text-red-600 hover:text-red-700 font-bold"
-            >
-              {isLogin ? "Đăng ký ngay" : "Đăng nhập"}
-            </button>
-          </div>
+          {(mode === MODE.LOGIN || mode === MODE.REGISTER) && (
+            <div className="mt-6 text-center">
+              <span className="text-sm text-gray-600">
+                {mode === MODE.LOGIN ? "Chưa có tài khoản? " : "Đã có tài khoản? "}
+              </span>
+              <button type="button" onClick={() => { setMode(mode === MODE.LOGIN ? MODE.REGISTER : MODE.LOGIN); setErrorMessage(""); }} className="text-sm text-red-600 hover:text-red-700 font-bold">
+                {mode === MODE.LOGIN ? "Đăng ký ngay" : "Đăng nhập"}
+              </button>
+            </div>
+          )}
+          {(mode === MODE.FORGOT || mode === MODE.RESET) && (
+            <div className="mt-6 text-center">
+              <button type="button" onClick={() => { setMode(MODE.LOGIN); setErrorMessage(""); setForgotSuccess(false); }} className="text-sm text-red-600 hover:text-red-700 font-bold">
+                ← Quay lại đăng nhập
+              </button>
+            </div>
+          )}
 
-          {/* Divider */}
+          {(mode === MODE.LOGIN || mode === MODE.REGISTER) && (
+          <>
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -417,8 +493,6 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
               <span className="px-4 bg-white text-gray-500">Hoặc</span>
             </div>
           </div>
-
-          {/* Social Login */}
           <div className="space-y-3">
             <button
               type="button"
@@ -467,6 +541,8 @@ export function AuthModal({ isOpen, onClose, onLogin }) {
               Đăng nhập với Facebook
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </>

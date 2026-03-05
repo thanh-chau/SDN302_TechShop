@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = mongoose.Schema(
   {
@@ -16,6 +17,16 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
+    phone: { type: String, default: '' },
+    address: { type: String, default: '' },
+    role: {
+      type: String,
+      enum: ['admin', 'staff', 'buyer'],
+      default: 'buyer',
+    },
+    isActive: { type: Boolean, default: true },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   {
     timestamps: true,
@@ -23,6 +34,10 @@ const userSchema = mongoose.Schema(
 );
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

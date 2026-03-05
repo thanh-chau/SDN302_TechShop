@@ -1,5 +1,6 @@
 // API Configuration and Service Layer
-const API_BASE_URL = "https://swd392-api.taiduc1001.net";
+// Dùng relative URL để request qua Vite proxy (/api -> backend local), không gọi API ngoài
+const API_BASE_URL = "";
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
@@ -7,7 +8,7 @@ const getAuthToken = () => {
   if (user) {
     try {
       const userData = JSON.parse(user);
-      return userData.token; // Assuming token is stored in user object
+      return userData.token; // token trong user object
     } catch (e) {
       console.error("Failed to parse user data");
       return null;
@@ -97,28 +98,37 @@ const apiRequest = async (endpoint, options = {}) => {
 
 // ==================== AUTH API ====================
 export const authAPI = {
-  // Register new user
   register: async (email, password, fullName, role) => {
-    const requestBody = { email, password, fullName };
-
-    // Always include role if provided (BUYER, STAFF, MANAGER, ADMIN)
-    if (role) {
-      requestBody.role = role;
-    }
-
-    console.log("Register request body:", requestBody);
-
+    const requestBody = { email, password, name: fullName };
+    if (role) requestBody.role = role.toLowerCase();
     return apiRequest("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(requestBody),
     });
   },
 
-  // Login user
   login: async (email, password) => {
     return apiRequest("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    });
+  },
+
+  getMe: async () => {
+    return apiRequest("/api/auth/me", { method: "GET" });
+  },
+
+  forgotPassword: async (email) => {
+    return apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword: async (token, newPassword) => {
+    return apiRequest("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
     });
   },
 };

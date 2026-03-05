@@ -14,7 +14,7 @@ const authenticate = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.id).select("-password");
-    if (!user || !user.isActive) {
+    if (!user || (user.isActive === false)) {
       return res.status(401).json({ message: "User not found or inactive" });
     }
     req.user = user;
