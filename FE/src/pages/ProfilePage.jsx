@@ -89,10 +89,10 @@ export function ProfilePage({ user }) {
                 </label>
                 <p className="text-lg text-gray-900">
                   {user.role === "admin" || user.role === "ADMIN"
-                    ? "Quản trị viên (ADMIN)"
+                    ? "Quản trị viên"
                     : user.role === "staff" || user.role === "STAFF"
-                      ? "Nhân viên (STAFF)"
-                      : "Khách hàng (USER)"}
+                      ? "Nhân viên"
+                      : "Khách hàng"}
                 </p>
               </div>
             </div>
