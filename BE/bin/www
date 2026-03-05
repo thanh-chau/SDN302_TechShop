@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 /**
+ * Load env first so MONGO_URI, JWT_SECRET, etc. are available
+ */
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+/**
  * Module dependencies.
  */
 
