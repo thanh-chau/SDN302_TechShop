@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { categoriesAPI } from "../utils/api";
 import { Header } from "../components/Header";
 import { HeroBanner } from "../components/HeroBanner";
 import { FlashSale } from "../components/FlashSale";
@@ -14,28 +15,21 @@ import { OrderHistory } from "../components/OrderHistory";
 import { SettingsModal } from "../components/SettingsModal";
 import { WishlistModal } from "../components/WishlistModal";
 import { ProfileModal } from "../components/ProfileModal";
-import { ChatBox, ChatButton } from "../components/ChatBox";
 
-const CATEGORIES = [
-  { id: "category-laptop", title: "Laptop - Máy Tính", category: "laptop" },
-  { id: "category-phone", title: "Điện Thoại - Smartphone", category: "phone" },
-  {
-    id: "category-tablet",
-    title: "Tablet - Máy Tính Bảng",
-    category: "tablet",
-  },
-  { id: "category-audio", title: "Âm Thanh - Tai Nghe", category: "audio" },
-  {
-    id: "category-accessories",
-    title: "Phụ Kiện - Accessories",
-    category: "accessories",
-  },
-  { id: "category-monitor", title: "Màn Hình - Monitor", category: "monitor" },
+// Danh mục mặc định khi backend chưa trả về hoặc trả rỗng (keywords để match với tên category từ API)
+const DEFAULT_CATEGORIES = [
+  { id: "category-laptop", name: "Laptop - Máy Tính", category: "laptop", keywords: ["laptop", "máy tính", "máy tính xách tay", "notebook"] },
+  { id: "category-phone", name: "Điện Thoại - Smartphone", category: "phone", keywords: ["phone", "điện thoại", "smartphone", "mobile"] },
+  { id: "category-tablet", name: "Tablet - Máy Tính Bảng", category: "tablet", keywords: ["tablet", "máy tính bảng", "tab"] },
+  { id: "category-audio", name: "Âm Thanh - Tai Nghe", category: "audio", keywords: ["audio", "âm thanh", "tai nghe", "loa", "headphone"] },
+  { id: "category-accessories", name: "Phụ Kiện - Accessories", category: "accessories", keywords: ["accessories", "phụ kiện", "khác", "other"] },
+  { id: "category-monitor", name: "Màn Hình - Monitor", category: "monitor", keywords: ["monitor", "màn hình", "display"] },
 ];
 
 export function HomePage({
   user,
   products,
+  productsLoading = false,
   cart,
   orders,
   wishlist,
@@ -62,7 +56,14 @@ export function HomePage({
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    categoriesAPI
+      .getList()
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, []);
 
   // Listen for custom events dispatched by UserMenu / Header
   useEffect(() => {
@@ -102,24 +103,27 @@ export function HomePage({
     };
   }, [user]);
 
-  const handleAddToCart = async (product) => {
-    if (!user) {
-      setAuthModalOpen(true);
-      return;
-    }
-    await onAddToCart(product);
-  };
+  const handleAddToCart = useCallback(
+    async (product) => {
+      if (!user) {
+        setAuthModalOpen(true);
+        return;
+      }
+      await onAddToCart(product);
+    },
+    [user, onAddToCart]
+  );
 
-  const handleCheckout = () => {
+  const handleCheckout = useCallback(() => {
     if (!user) {
       setAuthModalOpen(true);
       return;
     }
     setCartOpen(false);
     setCheckoutOpen(true);
-  };
+  }, [user]);
 
-  const scrollToCategory = (categoryId) => {
+  const scrollToCategory = useCallback((categoryId) => {
     const element = document.getElementById(categoryId);
     if (element) {
       const headerOffset = 200;
@@ -127,21 +131,52 @@ export function HomePage({
         element.getBoundingClientRect().top + window.pageYOffset - headerOffset;
       window.scrollTo({ top: offsetPosition, behavior: "smooth" });
     }
-  };
+  }, []);
+
+  const openCart = useCallback(() => setCartOpen(true), []);
+  const closeCart = useCallback(() => setCartOpen(false), []);
+  const openAuth = useCallback(() => setAuthModalOpen(true), []);
+  const closeProductDetail = useCallback(() => setSelectedProduct(null), []);
+
+  // Memo: tránh tạo mảng mới mỗi lần render → giảm re-render con
+  const displayCategories = useMemo(
+    () =>
+      categories?.length > 0
+        ? categories.map((c) => ({ id: c.id, name: c.name, category: c.name, keywords: null }))
+        : DEFAULT_CATEGORIES,
+    [categories]
+  );
+
+  const flashSaleProducts = useMemo(
+    () =>
+      (products || []).filter(
+        (p) =>
+          p.flashSaleEnd &&
+          new Date(p.flashSaleEnd) > new Date() &&
+          (p.discount > 0 || p.flashSalePrice)
+      ),
+    [products]
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
         cartCount={cartCount}
-        onCartClick={() => setCartOpen(true)}
+        onCartClick={openCart}
         user={user}
-        onLoginClick={() => setAuthModalOpen(true)}
+        onLoginClick={openAuth}
         onLogout={onLogout}
         onCategoryClick={scrollToCategory}
+        hasFlashSale={flashSaleProducts.length > 0}
+        categories={displayCategories}
       />
 
       <main>
-        <HeroBanner />
+        <HeroBanner
+          flashSaleProducts={flashSaleProducts}
+          onProductClick={setSelectedProduct}
+          onAddToCart={handleAddToCart}
+        />
         <FlashSale
           onAddToCart={handleAddToCart}
           onProductClick={setSelectedProduct}
@@ -150,19 +185,35 @@ export function HomePage({
           wishlistIds={wishlistIds}
         />
         <div className="max-w-7xl mx-auto px-4 py-8 space-y-12">
-          {CATEGORIES.map(({ id, title, category }) => (
-            <div key={id} id={id}>
-              <ProductGrid
-                title={title}
-                category={category}
-                onAddToCart={handleAddToCart}
-                onProductClick={setSelectedProduct}
-                products={products}
-                onToggleWishlist={onToggleWishlist}
-                wishlistIds={wishlistIds}
-              />
+          {productsLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 py-8">
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow animate-pulse overflow-hidden">
+                  <div className="h-48 bg-gray-200" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-4 bg-gray-200 rounded w-1/2" />
+                    <div className="h-6 bg-gray-200 rounded w-1/3" />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            displayCategories.map((cat) => (
+              <div key={cat.id} id={cat.id.startsWith("category-") ? cat.id : `category-${cat.id}`}>
+                <ProductGrid
+                  title={cat.name}
+                  category={cat.category}
+                  categoryKeywords={cat.keywords}
+                  onAddToCart={handleAddToCart}
+                  onProductClick={setSelectedProduct}
+                  products={products}
+                  onToggleWishlist={onToggleWishlist}
+                  wishlistIds={wishlistIds}
+                />
+              </div>
+            ))
+          )}
         </div>
       </main>
 
@@ -171,7 +222,7 @@ export function HomePage({
       {/* Sidebars & Modals */}
       <CartSidebar
         isOpen={cartOpen}
-        onClose={() => setCartOpen(false)}
+        onClose={closeCart}
         cart={cart}
         onUpdateQuantity={onUpdateQuantity}
         onRemove={onRemoveFromCart}
@@ -181,7 +232,7 @@ export function HomePage({
       {selectedProduct && (
         <ProductDetail
           product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
+          onClose={closeProductDetail}
           onAddToCart={handleAddToCart}
         />
       )}
@@ -255,8 +306,6 @@ export function HomePage({
           />
         ))}
 
-      {!chatOpen && <ChatButton onClick={() => setChatOpen(true)} />}
-      <ChatBox isOpen={chatOpen} onClose={() => setChatOpen(false)} />
-    </div>
+      </div>
   );
 }

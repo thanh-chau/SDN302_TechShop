@@ -1,9 +1,10 @@
+import { memo, useState, useMemo } from "react";
 import { ChevronRight, ShoppingCart, Star, Heart } from "lucide-react";
-import { useState } from "react";
 
-export function ProductGrid({
+function ProductGridInner({
   title,
   category,
+  categoryKeywords = [],
   onAddToCart,
   onProductClick,
   products,
@@ -12,22 +13,21 @@ export function ProductGrid({
 }) {
   const [showAll, setShowAll] = useState(false);
 
-  // Filter products by category (case-insensitive)
-  const allCategoryProducts = products
-    ? products.filter((p) => {
-        if (!p.category) return false;
-        const productCategory = p.category.toLowerCase();
-        const targetCategory = category.toLowerCase();
-
-        // Exact match or contains
-        return (
-          productCategory === targetCategory ||
-          productCategory.includes(targetCategory)
+  const allCategoryProducts = useMemo(() => {
+    if (!products) return [];
+    return products.filter((p) => {
+      if (!p.category) return false;
+      const productCategory = (typeof p.category === "string" ? p.category : "").toLowerCase().trim();
+      const target = (category || "").toLowerCase();
+      if (categoryKeywords?.length > 0) {
+        return categoryKeywords.some(
+          (kw) => productCategory === kw || productCategory.includes(kw)
         );
-      })
-    : [];
+      }
+      return productCategory === target || productCategory.includes(target);
+    });
+  }, [products, category, categoryKeywords]);
 
-  // Show 6 products initially, or all if showAll is true
   const categoryProducts = showAll
     ? allCategoryProducts
     : allCategoryProducts.slice(0, 6);
@@ -50,12 +50,12 @@ export function ProductGrid({
         )}
       </div>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Products Grid - items-stretch để mọi card cùng chiều cao */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
         {categoryProducts.map((product) => (
           <div
             key={product.id}
-            className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border-2 border-transparent hover:border-red-500"
+            className="h-full flex flex-col bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border-2 border-transparent hover:border-red-500"
           >
             {/* Discount Badge */}
             {product.discount && (
@@ -64,15 +64,17 @@ export function ProductGrid({
               </div>
             )}
 
-            {/* Product Image */}
+            {/* Product Image - chiều cao cố định, ảnh scale đều */}
             <div
-              className="relative h-48 overflow-hidden bg-gray-100"
+              className="relative w-full h-48 flex-shrink-0 overflow-hidden bg-gray-100"
               onClick={() => onProductClick(product)}
             >
               <img
                 src={product.image}
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-300"
               />
               {/* Wishlist Heart Button */}
               {onToggleWishlist && (
@@ -97,22 +99,24 @@ export function ProductGrid({
               )}
             </div>
 
-            {/* Product Info */}
-            <div className="p-4 space-y-3">
+            {/* Product Info - flex-1 + flex col để nội dung đều, nút đẩy xuống dưới */}
+            <div className="flex-1 flex flex-col min-h-0 p-4">
               <h3
-                className="font-semibold text-gray-900 line-clamp-2 min-h-[3rem] text-sm hover:text-red-600 transition-colors cursor-pointer"
+                className="font-semibold text-gray-900 line-clamp-2 min-h-[2.5rem] text-sm hover:text-red-600 transition-colors cursor-pointer flex-shrink-0"
                 onClick={() => onProductClick(product)}
               >
                 {product.name}
               </h3>
 
-              {/* Rating */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
+              <div className="flex-1 min-h-[1rem]" />
+
+              {/* Rating - chiều cao cố định để card đều nhau */}
+              <div className="flex items-center gap-2 flex-shrink-0 min-h-[1.25rem]">
+                <div className="flex items-center gap-0.5">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className="w-3 h-3"
+                      className="w-3 h-3 flex-shrink-0"
                       fill={
                         i < Math.floor(product.avgRating || 0)
                           ? "#facc15"
@@ -126,32 +130,36 @@ export function ProductGrid({
                     />
                   ))}
                 </div>
-                <span className="text-xs text-gray-500">
-                  ({product.reviewCount || 0})
+                <span className="text-xs text-gray-500 tabular-nums">
+                  ({product.reviewCount ?? 0})
                 </span>
               </div>
 
-              {/* Price */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-red-600">
+              {/* Price - luôn reserve 2 dòng (giá + giá gốc) để nút không bị lệch */}
+              <div className="flex-shrink-0 min-h-[3.25rem] flex flex-col justify-center space-y-0.5">
+                <div className="flex items-center gap-2 min-h-[1.75rem]">
+                  <span className="text-lg font-bold text-red-600 tabular-nums">
                     {product.price.toLocaleString("vi-VN")} ₫
                   </span>
                 </div>
-                {product.originalPrice && (
-                  <div className="text-xs text-gray-400 line-through">
-                    {product.originalPrice.toLocaleString("vi-VN")} ₫
-                  </div>
-                )}
+                <div className="min-h-[1rem] text-xs text-gray-400">
+                  {product.originalPrice ? (
+                    <span className="line-through tabular-nums">
+                      {product.originalPrice.toLocaleString("vi-VN")} ₫
+                    </span>
+                  ) : (
+                    <span className="invisible">0</span>
+                  )}
+                </div>
               </div>
 
-              {/* Add to Cart Button */}
+              {/* Add to Cart Button - mt-auto để luôn dính đáy card */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onAddToCart(product);
                 }}
-                className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm"
+                className="mt-auto pt-3 w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm flex-shrink-0"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>Thêm vào giỏ</span>
@@ -163,3 +171,5 @@ export function ProductGrid({
     </section>
   );
 }
+
+export const ProductGrid = memo(ProductGridInner);
