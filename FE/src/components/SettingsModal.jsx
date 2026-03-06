@@ -50,7 +50,11 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    if (
+      !passwordForm.currentPassword ||
+      !passwordForm.newPassword ||
+      !passwordForm.confirmPassword
+    ) {
       toast.error("Vui lòng nhập đầy đủ thông tin");
       return;
     }
@@ -64,9 +68,16 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
     }
     setLoading(true);
     try {
-      await userAPI.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      await userAPI.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword,
+      );
       toast.success("Đổi mật khẩu thành công!");
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     } catch (err) {
       toast.error(err.message || "Đổi mật khẩu thất bại");
     } finally {
@@ -86,7 +97,9 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-bold text-gray-900">Cài đặt tài khoản</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Cài đặt tài khoản
+            </h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -128,14 +141,18 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 {/* Email (readonly) */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Email</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={user?.email || ""}
                     disabled
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Email không thể thay đổi</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Email không thể thay đổi
+                  </p>
                 </div>
 
                 {/* Name */}
@@ -148,7 +165,9 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                   <input
                     type="text"
                     value={profileForm.name}
-                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, name: e.target.value })
+                    }
                     placeholder="Nhập họ và tên"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   />
@@ -164,7 +183,9 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                   <input
                     type="tel"
                     value={profileForm.phone}
-                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, phone: e.target.value })
+                    }
                     placeholder="Nhập số điện thoại"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   />
@@ -179,7 +200,12 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                   </label>
                   <textarea
                     value={profileForm.address}
-                    onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                    onChange={(e) =>
+                      setProfileForm({
+                        ...profileForm,
+                        address: e.target.value,
+                      })
+                    }
                     placeholder="Nhập địa chỉ"
                     rows={2}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
@@ -202,12 +228,19 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 {/* Current Password */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Mật khẩu hiện tại</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">
+                    Mật khẩu hiện tại
+                  </label>
                   <div className="relative">
                     <input
                       type={showCurrent ? "text" : "password"}
                       value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          currentPassword: e.target.value,
+                        })
+                      }
                       placeholder="Nhập mật khẩu hiện tại"
                       className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     />
@@ -216,19 +249,30 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                       onClick={() => setShowCurrent(!showCurrent)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showCurrent ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {/* New Password */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Mật khẩu mới</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">
+                    Mật khẩu mới
+                  </label>
                   <div className="relative">
                     <input
                       type={showNew ? "text" : "password"}
                       value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          newPassword: e.target.value,
+                        })
+                      }
                       placeholder="Ít nhất 6 ký tự"
                       className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     />
@@ -237,22 +281,35 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                       onClick={() => setShowNew(!showNew)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showNew ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {/* Confirm Password */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Xác nhận mật khẩu mới</label>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">
+                    Xác nhận mật khẩu mới
+                  </label>
                   <div className="relative">
                     <input
                       type={showConfirm ? "text" : "password"}
                       value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      onChange={(e) =>
+                        setPasswordForm({
+                          ...passwordForm,
+                          confirmPassword: e.target.value,
+                        })
+                      }
                       placeholder="Nhập lại mật khẩu mới"
                       className={`w-full px-4 py-2.5 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-                        passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword
+                        passwordForm.confirmPassword &&
+                        passwordForm.newPassword !==
+                          passwordForm.confirmPassword
                           ? "border-red-400 bg-red-50"
                           : "border-gray-300"
                       }`}
@@ -262,12 +319,20 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
                       onClick={() => setShowConfirm(!showConfirm)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirm ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
-                  {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1">Mật khẩu không khớp</p>
-                  )}
+                  {passwordForm.confirmPassword &&
+                    passwordForm.newPassword !==
+                      passwordForm.confirmPassword && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Mật khẩu không khớp
+                      </p>
+                    )}
                 </div>
 
                 <button
