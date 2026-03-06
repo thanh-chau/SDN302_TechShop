@@ -11,6 +11,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import { StaffDashboard } from "./components/StaffDashboard";
 import { CheckoutModal } from "./components/CheckoutModal";
 import { OrderHistory } from "./components/OrderHistory";
+import { SettingsModal } from "./components/SettingsModal";
 import { ChatBox, ChatButton } from "./components/ChatBox";
 import { AdminPage } from "./pages/AdminPage";
 import { StaffPage } from "./pages/StaffPage";
@@ -29,6 +30,7 @@ export default function App() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [viewMode, setViewMode] = useState("shop"); // "shop", "admin", or "staff"
   const [orders, setOrders] = useState([]);
@@ -147,9 +149,16 @@ export default function App() {
       }
     };
 
+    const handleOpenSettings = () => {
+      if (user) {
+        setSettingsOpen(true);
+      }
+    };
+
     window.addEventListener("openAdminDashboard", handleOpenAdminDashboard);
     window.addEventListener("openOrderHistory", handleOpenOrderHistory);
     window.addEventListener("openProfile", handleOpenProfile);
+    window.addEventListener("openSettings", handleOpenSettings);
 
     return () => {
       window.removeEventListener(
@@ -158,6 +167,7 @@ export default function App() {
       );
       window.removeEventListener("openOrderHistory", handleOpenOrderHistory);
       window.removeEventListener("openProfile", handleOpenProfile);
+      window.removeEventListener("openSettings", handleOpenSettings);
     };
   }, [user]);
 
@@ -616,6 +626,15 @@ export default function App() {
                   o.id === cancelledId ? { ...o, status: "cancelled" } : o,
                 ),
               );
+            }}
+          />
+
+          <SettingsModal
+            isOpen={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            user={user}
+            onProfileUpdated={(updatedUser) => {
+              setUser((prev) => ({ ...prev, ...updatedUser }));
             }}
           />
 

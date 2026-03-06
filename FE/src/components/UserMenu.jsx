@@ -57,6 +57,13 @@ export function UserMenu({ user, onLoginClick, onLogout }) {
     setIsOpen(false);
   };
 
+  // Function to open settings modal
+  const openSettings = () => {
+    const event = new CustomEvent("openSettings");
+    window.dispatchEvent(event);
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -133,13 +140,13 @@ export function UserMenu({ user, onLoginClick, onLogout }) {
               <span>Sản phẩm yêu thích</span>
             </a>
 
-            <a
-              href="#"
-              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+            <button
+              onClick={openSettings}
+              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors text-left"
             >
               <Settings className="w-5 h-5 text-gray-600" />
               <span>Cài đặt</span>
-            </a>
+            </button>
           </div>
 
           {/* Logout */}
