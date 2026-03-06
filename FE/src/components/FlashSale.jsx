@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
-import { Flame, ChevronRight, ShoppingCart, Star } from "lucide-react";
+import { Flame, ChevronRight, ShoppingCart, Star, Heart } from "lucide-react";
 
-export function FlashSale({ onAddToCart, onProductClick, products }) {
+export function FlashSale({
+  onAddToCart,
+  onProductClick,
+  products,
+  onToggleWishlist,
+  wishlistIds = new Set(),
+}) {
   const [timeLeft, setTimeLeft] = useState({
     hours: 2,
     minutes: 30,
@@ -43,11 +49,6 @@ export function FlashSale({ onAddToCart, onProductClick, products }) {
         .filter((product) => product.discount && product.discount > 0)
         .slice(0, 10)
     : [];
-
-  console.log("FlashSale products:", {
-    total: products?.length || 0,
-    shown: flashSaleProducts.length,
-  });
 
   const formatTime = (value) => String(value).padStart(2, "0");
 
@@ -106,23 +107,39 @@ export function FlashSale({ onAddToCart, onProductClick, products }) {
               key={product.id}
               className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border-2 border-transparent hover:border-red-500"
             >
-              {/* Discount Badge */}
-              {product.discount && (
-                <div className="absolute top-2 left-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold z-10 shadow-lg">
-                  -{product.discount}%
-                </div>
-              )}
-
               {/* Product Image */}
               <div
                 className="relative h-48 overflow-hidden bg-gray-100"
                 onClick={() => onProductClick(product)}
               >
+                {/* Discount Badge */}
+                {product.discount && (
+                  <div className="absolute top-2 left-2 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold z-10 shadow-lg">
+                    -{product.discount}%
+                  </div>
+                )}
                 <img
                   src={product.image}
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                 />
+                {onToggleWishlist && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleWishlist(product);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    <Heart
+                      className={`w-4 h-4 transition-colors ${
+                        wishlistIds.has(product.id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-gray-400 hover:text-red-500"
+                      }`}
+                    />
+                  </button>
+                )}
               </div>
 
               {/* Product Info */}

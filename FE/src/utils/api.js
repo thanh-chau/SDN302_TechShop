@@ -135,9 +135,16 @@ export const authAPI = {
 
 // ==================== PRODUCT API ====================
 export const productAPI = {
-  // Get all products
+  // Get all products for home (only còn hàng)
   getAll: async () => {
     return apiRequest("/api/products", {
+      method: "GET",
+    });
+  },
+
+  // Get all products for admin/staff (includes hết hàng + ngừng bán)
+  getAllAdmin: async () => {
+    return apiRequest("/api/products/admin", {
       method: "GET",
     });
   },
@@ -162,6 +169,13 @@ export const productAPI = {
     return apiRequest("/api/products", {
       method: "PUT",
       body: JSON.stringify(productData),
+    });
+  },
+
+  // Ngừng bán sản phẩm (sets isActive=false, does NOT hard delete)
+  discontinue: async (productId) => {
+    return apiRequest(`/api/products/${productId}`, {
+      method: "DELETE",
     });
   },
 
@@ -243,11 +257,32 @@ export const orderAPI = {
     });
   },
 
-  // Create new order
-  create: async (userId) => {
+  // Create new order (from cart)
+  create: async (
+    userId,
+    shippingName,
+    shippingPhone,
+    shippingAddress,
+    paymentMethod,
+    note,
+  ) => {
     return apiRequest("/api/orders", {
       method: "POST",
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({
+        userId,
+        shippingName,
+        shippingPhone,
+        shippingAddress,
+        paymentMethod: paymentMethod || "cod",
+        note,
+      }),
+    });
+  },
+
+  // Cancel order (buyer)
+  cancel: async (orderId) => {
+    return apiRequest(`/api/orders/${orderId}/cancel`, {
+      method: "PUT",
     });
   },
 
@@ -359,10 +394,26 @@ export const fileAPI = {
 
 // ==================== USER API ====================
 export const userAPI = {
-  // Get all users (admin only)
+  // Get all users (admin/staff only)
   getAll: async () => {
-    return apiRequest("/api/user", {
+    return apiRequest("/api/auth/users", {
       method: "GET",
+    });
+  },
+
+  // Update own profile (name, phone, address)
+  updateProfile: async (data) => {
+    return apiRequest("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Change password
+  changePassword: async (currentPassword, newPassword) => {
+    return apiRequest("/api/auth/change-password", {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, newPassword }),
     });
   },
 
@@ -374,10 +425,36 @@ export const userAPI = {
   },
 };
 
+export const reviewAPI = {
+  // Tạo đánh giá cho sản phẩm trong đơn hàng đã hoàn thành
+  create: async (productId, orderId, rating, comment) => {
+    return apiRequest("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify({ productId, orderId, rating, comment }),
+    });
+  },
+
+  // Lấy tất cả đánh giá của sản phẩm
+  getByProduct: async (productId) => {
+    return apiRequest(`/api/reviews/product/${productId}`, { method: "GET" });
+  },
+
+  // Kiểm tra user đã review sản phẩm trong đơn hàng chưa
+  checkReviewed: async (productId, orderId) => {
+    return apiRequest(
+      `/api/reviews/check?productId=${productId}&orderId=${orderId}`,
+      {
+        method: "GET",
+      },
+    );
+  },
+};
+
 export default {
   auth: authAPI,
   product: productAPI,
   cart: cartAPI,
   order: orderAPI,
   user: userAPI,
+  review: reviewAPI,
 };

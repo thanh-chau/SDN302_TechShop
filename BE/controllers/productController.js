@@ -1,6 +1,29 @@
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const Brand = require("../models/Brand");
+const Review = require("../models/Review");
+
+// Build a map of productId -> { avgRating, reviewCount } from Review collection
+const getReviewStats = async (productIds) => {
+  const stats = await Review.aggregate([
+    { $match: { productId: { $in: productIds } } },
+    {
+      $group: {
+        _id: "$productId",
+        avgRating: { $avg: "$rating" },
+        reviewCount: { $sum: 1 },
+      },
+    },
+  ]);
+  const map = {};
+  stats.forEach((s) => {
+    map[s._id.toString()] = {
+      avgRating: Math.round(s.avgRating * 10) / 10,
+      reviewCount: s.reviewCount,
+    };
+  });
+  return map;
+};
 
 const getOrCreateCategory = async (name) => {
   if (!name || !String(name).trim()) return null;
@@ -17,24 +40,45 @@ const getOrCreateBrand = async (name) => {
   return brand._id;
 };
 
+// Derive 3-state status from isActive + stock
+const deriveStatus = (isActive, stock) => {
+  if (!isActive) return "discontinued"; // Ngừng bán
+  if (stock <= 0) return "outofstock"; // Hết hàng
+  return "active"; // Còn hàng
+};
+
+// Home page: only show "còn hàng" (isActive=true AND stock>0)
 const list = async (req, res) => {
   try {
-    const products = await Product.find({ isActive: true })
+    const products = await Product.find({ isActive: true, stock: { $gt: 0 } })
       .populate("category", "name")
       .populate("brand", "name")
       .lean();
-    const list = products.map((p) => ({
-      id: p._id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      stock: p.stock,
-      stockQuantity: p.stock,
-      category: p.category?.name || p.category,
-      imgUrl: p.images?.[0] || null,
-      image: p.images?.[0] || null,
-      isActive: p.isActive,
-    }));
+
+    const productIds = products.map((p) => p._id);
+    const reviewStats = await getReviewStats(productIds);
+
+    const list = products.map((p) => {
+      const stats = reviewStats[p._id.toString()] || {
+        avgRating: 0,
+        reviewCount: 0,
+      };
+      return {
+        id: p._id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        stockQuantity: p.stock,
+        category: p.category?.name || p.category,
+        imgUrl: p.images?.[0] || null,
+        image: p.images?.[0] || null,
+        isActive: p.isActive,
+        productStatus: deriveStatus(p.isActive, p.stock),
+        avgRating: stats.avgRating,
+        reviewCount: stats.reviewCount,
+      };
+    });
     res.json(list);
   } catch (err) {
     console.error("Product list error:", err);
@@ -42,9 +86,57 @@ const list = async (req, res) => {
   }
 };
 
+// Admin/Staff: show all products with full status info
+const listAll = async (req, res) => {
+  try {
+    const products = await Product.find()
+      .populate("category", "name")
+      .populate("brand", "name")
+      .lean();
+
+    const productIds = products.map((p) => p._id);
+    const reviewStats = await getReviewStats(productIds);
+
+    const list = products.map((p) => {
+      const stats = reviewStats[p._id.toString()] || {
+        avgRating: 0,
+        reviewCount: 0,
+      };
+      return {
+        id: p._id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        stockQuantity: p.stock,
+        category: p.category?.name || p.category,
+        imgUrl: p.images?.[0] || null,
+        image: p.images?.[0] || null,
+        isActive: p.isActive,
+        productStatus: deriveStatus(p.isActive, p.stock),
+        avgRating: stats.avgRating,
+        reviewCount: stats.reviewCount,
+      };
+    });
+    res.json(list);
+  } catch (err) {
+    console.error("Product listAll error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const create = async (req, res) => {
   try {
-    const { name, description, price, stockQuantity, stock, category, status, imgUrl } = req.body;
+    const {
+      name,
+      description,
+      price,
+      stockQuantity,
+      stock,
+      category,
+      status,
+      imgUrl,
+    } = req.body;
     if (!name || price == null) {
       return res.status(400).json({ message: "Thiếu tên hoặc giá" });
     }
@@ -76,19 +168,32 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
   try {
-    const { id, name, description, price, stockQuantity, stock, category, status, imgUrl } = req.body;
+    const {
+      id,
+      name,
+      description,
+      price,
+      stockQuantity,
+      stock,
+      category,
+      status,
+      imgUrl,
+    } = req.body;
     if (!id) return res.status(400).json({ message: "Thiếu id sản phẩm" });
     const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    if (!product)
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     if (name != null) product.name = name;
     if (description != null) product.description = description;
     if (price != null) product.price = Number(price);
-    if (stockQuantity != null || stock != null) product.stock = Number(stockQuantity ?? stock ?? product.stock);
+    if (stockQuantity != null || stock != null)
+      product.stock = Number(stockQuantity ?? stock ?? product.stock);
     if (category != null) {
       product.category = await getOrCreateCategory(category);
     }
     if (imgUrl != null) product.images = [imgUrl];
-    if (status != null) product.isActive = status !== "INACTIVE" && status !== "inactive";
+    if (status != null)
+      product.isActive = status !== "INACTIVE" && status !== "inactive";
     await product.save();
     res.json({
       id: product._id,
@@ -107,7 +212,8 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    if (!product)
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     product.isActive = false;
     await product.save();
     res.json({ message: "Đã ẩn sản phẩm" });
@@ -117,4 +223,4 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { list, create, update, remove };
+module.exports = { list, listAll, create, update, remove };
