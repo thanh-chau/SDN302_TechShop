@@ -49,7 +49,7 @@ export function StaffPage({ user, onLogout, onBackToShop }) {
 
   const loadProducts = async () => {
     try {
-      const data = await productAPI.getAll();
+      const data = await productAPI.getAllAdmin();
       setProducts(data || []);
     } catch (error) {
       console.error("Failed to load products:", error);

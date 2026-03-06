@@ -38,8 +38,8 @@ export function CheckoutModal({
     setIsSubmitting(true);
 
     try {
-      // Pass payment method to the order handler
-      await onOrderComplete(formData.paymentMethod);
+      // Pass full formData to the order handler
+      await onOrderComplete(formData);
 
       // Only close modal and reset if payment is COD
       // For MoMo, the page will redirect, so no need to close
