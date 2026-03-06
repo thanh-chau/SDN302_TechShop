@@ -1,9 +1,81 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
 
 const JWT_SECRET = process.env.JWT_SECRET || "techshop_secret_key";
 const JWT_EXPIRES_IN = "7d";
+
+// POST /api/auth/google — đăng nhập bằng Google (Client ID lấy từ env GOOGLE_CLIENT_ID)
+const googleLogin = async (req, res) => {
+  try {
+    const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || "").trim();
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(503).json({
+        message:
+          "Google đăng nhập chưa được cấu hình. Thêm GOOGLE_CLIENT_ID vào BE/.env rồi restart server BE (npm start trong thư mục BE).",
+      });
+    }
+
+    const { id_token: idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: "Thiếu id_token từ Google" });
+    }
+
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name: googleName } = payload;
+
+    if (!email) {
+      return res.status(400).json({ message: "Tài khoản Google không có email" });
+    }
+
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save({ validateBeforeSave: false });
+      }
+    } else {
+      user = new User({
+        name: googleName || email.split("@")[0],
+        email,
+        googleId,
+        password: crypto.randomBytes(16).toString("hex"),
+        role: "buyer",
+      });
+      await user.save({ validateBeforeSave: false });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Tài khoản đã bị vô hiệu hóa" });
+    }
+
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
+
+    res.json({
+      message: "Đăng nhập thành công",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+      },
+    });
+  } catch (err) {
+    console.error("Google login error:", err);
+    res.status(500).json({ message: err.message || "Đăng nhập Google thất bại" });
+  }
+};
 
 // POST /api/auth/login
 const login = async (req, res) => {
@@ -249,6 +321,7 @@ const getAllUsers = async (req, res) => {
 
 module.exports = {
   login,
+  googleLogin,
   register,
   getMe,
   forgotPassword,

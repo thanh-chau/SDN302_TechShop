@@ -1,6 +1,11 @@
-require("dotenv").config();
-var express = require("express");
 var path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+// Kiểm tra Google OAuth ngay khi khởi động (để dễ debug)
+const hasGoogleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim().length > 0;
+console.log("[Auth] Đăng nhập Google:", hasGoogleClientId ? "đã cấu hình" : "CHƯA cấu hình (thêm GOOGLE_CLIENT_ID vào BE/.env và restart)");
+
+var express = require("express");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 var connectDB = require("./config/db");

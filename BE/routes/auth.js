@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   login,
+  googleLogin,
   register,
   getMe,
   forgotPassword,
@@ -13,6 +14,7 @@ const {
 const { authenticate, authorize } = require("../middleware/auth");
 
 router.post("/login", login);
+router.post("/google", googleLogin);
 router.post("/register", register);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

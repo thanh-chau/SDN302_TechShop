@@ -13,9 +13,16 @@ const userSchema = mongoose.Schema(
       required: true,
       unique: true,
     },
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true,
+    },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return !this.googleId;
+      },
     },
     phone: { type: String, default: '' },
     address: { type: String, default: '' },
@@ -41,10 +48,8 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
-  }
+userSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

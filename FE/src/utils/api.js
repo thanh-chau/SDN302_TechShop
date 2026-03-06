@@ -114,6 +114,14 @@ export const authAPI = {
     });
   },
 
+  /** Đăng nhập bằng Google: gửi id_token từ Google lên backend (cấu hình VITE_GOOGLE_CLIENT_ID trong .env) */
+  loginWithGoogle: async (idToken) => {
+    return apiRequest("/api/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ id_token: idToken }),
+    });
+  },
+
   getMe: async () => {
     return apiRequest("/api/auth/me", { method: "GET" });
   },
