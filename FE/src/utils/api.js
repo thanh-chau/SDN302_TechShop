@@ -141,6 +141,13 @@ export const authAPI = {
   },
 };
 
+// ==================== CATEGORIES API ====================
+export const categoriesAPI = {
+  getList: async () => {
+    return apiRequest("/api/categories", { method: "GET" });
+  },
+};
+
 // ==================== PRODUCT API ====================
 export const productAPI = {
   // Get all products for home (only còn hàng)
