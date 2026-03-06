@@ -30,6 +30,12 @@ const addItem = async (req, res) => {
     }
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    const now = new Date();
+    const inFlashSale =
+      product.flashSalePrice != null &&
+      product.flashSaleEnd &&
+      new Date(product.flashSaleEnd) > now;
+    const priceAtTime = inFlashSale ? product.flashSalePrice : product.price;
     const qty = Math.max(1, Number(quantity) || 1);
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
@@ -39,12 +45,12 @@ const addItem = async (req, res) => {
     if (existing) {
       existing.quantity += qty;
       existing.productName = product.name;
-      existing.priceAtTime = product.price;
+      existing.priceAtTime = priceAtTime;
     } else {
       cart.items.push({
         productId,
         productName: product.name,
-        priceAtTime: product.price,
+        priceAtTime,
         quantity: qty,
       });
     }

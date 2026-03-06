@@ -19,6 +19,7 @@ import {
   Lock,
   Shield,
   AlertCircle,
+  Flame,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { productAPI, orderAPI, userAPI, fileAPI, authAPI } from "../utils/api";
@@ -63,6 +64,13 @@ export function AdminPage({ user, onLogout }) {
     password: "",
     role: "STAFF",
   });
+
+  // Flash Sale: form để thêm/sửa flash sale cho sản phẩm
+  const [showFlashSaleForm, setShowFlashSaleForm] = useState(false);
+  const [flashSaleProduct, setFlashSaleProduct] = useState(null);
+  const [flashSalePrice, setFlashSalePrice] = useState("");
+  const [flashSaleEnd, setFlashSaleEnd] = useState("");
+  const [savingFlashSale, setSavingFlashSale] = useState(false);
 
   const handleOpenUserForm = () => {
     setUserForm({ fullName: "", email: "", password: "", role: "STAFF" });
@@ -355,6 +363,69 @@ export function AdminPage({ user, onLogout }) {
     return orderStatusFilter === "all" || o.status === orderStatusFilter;
   });
 
+  const productsInFlashSale = products.filter(
+    (p) => p.flashSaleEnd && new Date(p.flashSaleEnd) > new Date()
+  );
+  /** Sản phẩm từng Flash Sale nhưng đã hết hạn (end time qua) — tự động chuyển xuống đây */
+  const productsFlashSaleExpired = products.filter(
+    (p) => p.flashSaleEnd && new Date(p.flashSaleEnd) <= new Date()
+  );
+
+  const handleOpenFlashSaleForm = (product) => {
+    setFlashSaleProduct(product || null);
+    setFlashSalePrice(product?.flashSalePrice != null ? String(product.flashSalePrice) : "");
+    setFlashSaleEnd(
+      product?.flashSaleEnd
+        ? new Date(product.flashSaleEnd).toISOString().slice(0, 16)
+        : ""
+    );
+    setShowFlashSaleForm(true);
+  };
+
+  const handleSaveFlashSale = async (e) => {
+    e.preventDefault();
+    if (!flashSaleProduct) return;
+    const price = parseFloat(flashSalePrice);
+    if (isNaN(price) || price < 0) {
+      toast.error("Giá flash sale không hợp lệ");
+      return;
+    }
+    if (!flashSaleEnd) {
+      toast.error("Chọn thời gian kết thúc");
+      return;
+    }
+    setSavingFlashSale(true);
+    try {
+      await productAPI.update({
+        id: flashSaleProduct.id,
+        flashSalePrice: price,
+        flashSaleEnd: new Date(flashSaleEnd).toISOString(),
+      });
+      toast.success("Đã cập nhật Flash Sale!");
+      await loadProducts();
+      setShowFlashSaleForm(false);
+    } catch (err) {
+      toast.error(err.message || "Không thể lưu Flash Sale");
+    } finally {
+      setSavingFlashSale(false);
+    }
+  };
+
+  const handleRemoveFlashSale = async (product) => {
+    if (!confirm("Gỡ sản phẩm khỏi Flash Sale?")) return;
+    try {
+      await productAPI.update({
+        id: product.id,
+        flashSalePrice: null,
+        flashSaleEnd: null,
+      });
+      toast.success("Đã gỡ Flash Sale!");
+      await loadProducts();
+    } catch (err) {
+      toast.error(err.message || "Không thể gỡ");
+    }
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: { color: "bg-yellow-100 text-yellow-800", text: "Chờ xử lý" },
@@ -500,6 +571,19 @@ export function AdminPage({ user, onLogout }) {
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
                   Người dùng ({users.length})
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("flashsale")}
+                className={`py-4 px-4 font-semibold border-b-2 transition-colors ${
+                  activeTab === "flashsale"
+                    ? "border-red-600 text-red-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Flame className="w-5 h-5" />
+                  Flash Sale ({productsInFlashSale.length})
                 </div>
               </button>
             </div>
@@ -773,6 +857,228 @@ export function AdminPage({ user, onLogout }) {
               </div>
             )}
 
+            {activeTab === "flashsale" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Quản lý Flash Sale</h2>
+                  <p className="text-sm text-gray-500">
+                    Đặt giá khuyến mãi và thời gian kết thúc. Buyer bấm nút Flash Sale để xem và mua.
+                  </p>
+                </div>
+                {products.length === 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+                    <p className="text-amber-800 font-medium mb-2">
+                      Chưa có sản phẩm nào trong hệ thống.
+                    </p>
+                    <p className="text-amber-700 text-sm mb-4">
+                      Vào tab <strong>Sản phẩm</strong> → bấm <strong>Thêm sản phẩm</strong> để tạo sản phẩm trước. Sau đó quay lại tab Flash Sale để đưa sản phẩm vào khuyến mãi.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("products")}
+                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium"
+                    >
+                      Chuyển đến tab Sản phẩm
+                    </button>
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <h3 className="font-semibold mb-2 text-gray-800">Đang chạy</h3>
+                  <p className="text-xs text-gray-500 mb-3">Hết giờ kết thúc sẽ tự chuyển xuống mục &quot;Flash Sale đã kết thúc&quot;.</p>
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Sản phẩm</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá gốc</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá Flash Sale</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Kết thúc</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {productsInFlashSale.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                            Chưa có sản phẩm nào đang Flash Sale. Thêm ở bảng dưới.
+                          </td>
+                        </tr>
+                      ) : (
+                        productsInFlashSale.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium">{p.name}</td>
+                            <td className="px-4 py-3">{p.originalPrice?.toLocaleString("vi-VN") ?? p.price?.toLocaleString("vi-VN")} ₫</td>
+                            <td className="px-4 py-3 text-red-600 font-semibold">{p.flashSalePrice?.toLocaleString("vi-VN")} ₫</td>
+                            <td className="px-4 py-3 text-sm">{p.flashSaleEnd ? new Date(p.flashSaleEnd).toLocaleString("vi-VN") : "—"}</td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleOpenFlashSaleForm(p)}
+                                className="text-blue-600 hover:underline mr-2"
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                onClick={() => handleRemoveFlashSale(p)}
+                                className="text-red-600 hover:underline"
+                              >
+                                Gỡ Flash Sale
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {productsFlashSaleExpired.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <h3 className="font-semibold mb-2 text-gray-600">Flash Sale đã kết thúc</h3>
+                    <p className="text-xs text-gray-500 mb-3">Sản phẩm hết thời gian end tự động hiển thị ở đây. Có thể gỡ hoặc thêm lại với thời gian mới.</p>
+                    <table className="w-full border border-gray-200 rounded-lg">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Sản phẩm</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá gốc</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá đã sale</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Đã kết thúc lúc</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y bg-white">
+                        {productsFlashSaleExpired.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium">{p.name}</td>
+                            <td className="px-4 py-3">{p.originalPrice?.toLocaleString("vi-VN") ?? p.price?.toLocaleString("vi-VN")} ₫</td>
+                            <td className="px-4 py-3 text-gray-600">{p.flashSalePrice?.toLocaleString("vi-VN")} ₫</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">{p.flashSaleEnd ? new Date(p.flashSaleEnd).toLocaleString("vi-VN") : "—"}</td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleOpenFlashSaleForm(p)}
+                                className="text-blue-600 hover:underline mr-2"
+                              >
+                                Thêm lại
+                              </button>
+                              <button
+                                onClick={() => handleRemoveFlashSale(p)}
+                                className="text-red-600 hover:underline"
+                              >
+                                Gỡ
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="font-semibold mb-3">Thêm sản phẩm vào Flash Sale</h3>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Chỉ sản phẩm <strong>đang bán</strong> và <strong>còn hàng</strong> mới được thêm. Sản phẩm ngừng bán hoặc hết hàng không hiển thị ở đây.
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Sản phẩm</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Giá</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {products.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                              Chưa có sản phẩm. Vào tab <strong>Sản phẩm</strong> → <strong>Thêm sản phẩm</strong> trước.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredProducts
+                            .filter((p) => p.productStatus === "active")
+                            .filter((p) => !p.flashSaleEnd || new Date(p.flashSaleEnd) <= new Date())
+                            .map((p) => (
+                              <tr key={p.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 font-medium">{p.name}</td>
+                                <td className="px-4 py-3">{p.price?.toLocaleString("vi-VN")} ₫</td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    onClick={() => handleOpenFlashSaleForm(p)}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
+                                  >
+                                    Thêm Flash Sale
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                        )}
+                        {products.length > 0 &&
+                          filteredProducts
+                            .filter((p) => p.productStatus === "active")
+                            .filter((p) => !p.flashSaleEnd || new Date(p.flashSaleEnd) <= new Date()).length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                              Không có sản phẩm đang bán & còn hàng để thêm (hoặc tất cả đã trong Flash Sale). Sản phẩm ngừng bán / hết hàng không được đưa vào Flash Sale.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                {/* Modal thêm/sửa Flash Sale */}
+                {showFlashSaleForm && flashSaleProduct && (
+                  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                      <h3 className="text-lg font-bold mb-4">
+                        {flashSaleProduct.flashSalePrice != null ? "Sửa" : "Thêm"} Flash Sale
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4">{flashSaleProduct.name}</p>
+                      <form onSubmit={handleSaveFlashSale} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Giá Flash Sale (₫)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={flashSalePrice}
+                            onChange={(e) => setFlashSalePrice(e.target.value)}
+                            className="w-full px-4 py-2 border rounded-lg"
+                            placeholder="VD: 5000000"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc lúc</label>
+                          <input
+                            type="datetime-local"
+                            value={flashSaleEnd}
+                            onChange={(e) => setFlashSaleEnd(e.target.value)}
+                            className="w-full px-4 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowFlashSaleForm(false)}
+                            className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={savingFlashSale}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
+                          >
+                            {savingFlashSale ? "Đang lưu..." : "Lưu"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === "users" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -958,10 +1264,10 @@ export function AdminPage({ user, onLogout }) {
                     }
                     className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 transition-colors appearance-none bg-white cursor-pointer"
                   >
-                    <option value="BUYER">Khách hàng (BUYER)</option>
-                    <option value="STAFF">Nhân viên (STAFF)</option>
-                    <option value="MANAGER">Quản lý (MANAGER)</option>
-                    <option value="ADMIN">Quản trị viên (ADMIN)</option>
+                    <option value="BUYER">Khách hàng </option>
+                    <option value="STAFF">Nhân viên </option>
+                    <option value="MANAGER">Quản lý </option>
+                    <option value="ADMIN">Quản trị viên </option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg

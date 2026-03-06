@@ -150,6 +150,13 @@ export const productAPI = {
     });
   },
 
+  // Chỉ sản phẩm đang flash sale (cho trang Flash Sale / buyer)
+  getFlashSale: async () => {
+    return apiRequest("/api/products?flashSale=true", {
+      method: "GET",
+    });
+  },
+
   // Get all products for admin/staff (includes hết hàng + ngừng bán)
   getAllAdmin: async () => {
     return apiRequest("/api/products/admin", {

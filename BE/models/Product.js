@@ -19,6 +19,9 @@ const productSchema = new mongoose.Schema(
     },
     specifications: { type: Map, of: String, default: {} },
     isActive: { type: Boolean, default: true },
+    // Flash Sale: giá khuyến mãi và thời điểm kết thúc (optional)
+    flashSalePrice: { type: Number, default: null },
+    flashSaleEnd: { type: Date, default: null },
   },
   { timestamps: true },
 );
