@@ -100,16 +100,22 @@ export function ProductGrid({
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-3 h-3 ${
-                        i < Math.floor(product.rating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "text-gray-300"
-                      }`}
+                      className="w-3 h-3"
+                      fill={
+                        i < Math.floor(product.avgRating || 0)
+                          ? "#facc15"
+                          : "none"
+                      }
+                      stroke={
+                        i < Math.floor(product.avgRating || 0)
+                          ? "#facc15"
+                          : "#d1d5db"
+                      }
                     />
                   ))}
                 </div>
                 <span className="text-xs text-gray-500">
-                  ({product.reviews})
+                  ({product.reviewCount || 0})
                 </span>
               </div>
 

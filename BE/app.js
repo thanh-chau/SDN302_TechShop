@@ -14,6 +14,7 @@ var uploadRouter = require("./routes/upload");
 var productsRouter = require("./routes/products");
 var cartRouter = require("./routes/cart");
 var ordersRouter = require("./routes/orders");
+var reviewsRouter = require("./routes/reviews");
 
 connectDB();
 
@@ -45,6 +46,7 @@ app.use("/api/files", uploadRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/orders", ordersRouter);
+app.use("/api/reviews", reviewsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
