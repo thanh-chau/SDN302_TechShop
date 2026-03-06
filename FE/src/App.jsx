@@ -311,7 +311,20 @@ export default function App() {
     }
   };
 
-  const handleOrderComplete = async (paymentMethod = "cod") => {
+  const handleOrderComplete = async (orderData = {}) => {
+    // Support both old (string) and new (object) call signatures
+    const paymentMethod =
+      typeof orderData === "string"
+        ? orderData
+        : orderData.paymentMethod || "cod";
+    const shippingName =
+      typeof orderData === "object" ? orderData.name || "" : "";
+    const shippingPhone =
+      typeof orderData === "object" ? orderData.phone || "" : "";
+    const shippingAddress =
+      typeof orderData === "object" ? orderData.address || "" : "";
+    const note = typeof orderData === "object" ? orderData.note || "" : "";
+
     if (!user || !user.id) {
       toast.error("Vui lòng đăng nhập để đặt hàng");
       return;
@@ -338,17 +351,22 @@ export default function App() {
         !backendCart.cartItems ||
         backendCart.cartItems.length === 0
       ) {
-        toast.error(
-          "Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng lại.",
-        );
+        toast.error("Giỏ hàng trống. Vui lòng thêm sản phẩm vào giỏ hàng lại.");
         // Try to sync cart
         console.log("Attempting to reload cart...");
         await loadCart();
         return;
       }
 
-      // Create order via API (backend will get items from user's cart)
-      const createdOrder = await orderAPI.create(user.id);
+      // Create order via API with full shipping info
+      const createdOrder = await orderAPI.create(
+        user.id,
+        shippingName,
+        shippingPhone,
+        shippingAddress,
+        paymentMethod,
+        note,
+      );
       console.log("Order created successfully:", createdOrder);
 
       // ========== MOMO PAYMENT INTEGRATION ==========
@@ -592,6 +610,13 @@ export default function App() {
             isOpen={orderHistoryOpen}
             onClose={() => setOrderHistoryOpen(false)}
             orders={userOrders}
+            onOrderCancelled={(cancelledId) => {
+              setOrders((prev) =>
+                prev.map((o) =>
+                  o.id === cancelledId ? { ...o, status: "cancelled" } : o,
+                ),
+              );
+            }}
           />
 
           {/* Profile Modal */}

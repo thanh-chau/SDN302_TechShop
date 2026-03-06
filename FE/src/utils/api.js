@@ -135,9 +135,16 @@ export const authAPI = {
 
 // ==================== PRODUCT API ====================
 export const productAPI = {
-  // Get all products
+  // Get all products for home (only còn hàng)
   getAll: async () => {
     return apiRequest("/api/products", {
+      method: "GET",
+    });
+  },
+
+  // Get all products for admin/staff (includes hết hàng + ngừng bán)
+  getAllAdmin: async () => {
+    return apiRequest("/api/products/admin", {
       method: "GET",
     });
   },
@@ -162,6 +169,13 @@ export const productAPI = {
     return apiRequest("/api/products", {
       method: "PUT",
       body: JSON.stringify(productData),
+    });
+  },
+
+  // Ngừng bán sản phẩm (sets isActive=false, does NOT hard delete)
+  discontinue: async (productId) => {
+    return apiRequest(`/api/products/${productId}`, {
+      method: "DELETE",
     });
   },
 
@@ -243,11 +257,32 @@ export const orderAPI = {
     });
   },
 
-  // Create new order
-  create: async (userId) => {
+  // Create new order (from cart)
+  create: async (
+    userId,
+    shippingName,
+    shippingPhone,
+    shippingAddress,
+    paymentMethod,
+    note,
+  ) => {
     return apiRequest("/api/orders", {
       method: "POST",
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({
+        userId,
+        shippingName,
+        shippingPhone,
+        shippingAddress,
+        paymentMethod: paymentMethod || "cod",
+        note,
+      }),
+    });
+  },
+
+  // Cancel order (buyer)
+  cancel: async (orderId) => {
+    return apiRequest(`/api/orders/${orderId}/cancel`, {
+      method: "PUT",
     });
   },
 

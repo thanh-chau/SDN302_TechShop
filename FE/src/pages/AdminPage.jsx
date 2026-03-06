@@ -118,7 +118,7 @@ export function AdminPage({ user, onLogout }) {
 
   const loadProducts = async () => {
     try {
-      const data = await productAPI.getAll();
+      const data = await productAPI.getAllAdmin();
       setProducts(data || []);
     } catch (error) {
       console.error("Failed to load products:", error);
@@ -294,16 +294,31 @@ export function AdminPage({ user, onLogout }) {
   };
 
   const handleDeleteProduct = async (productId) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
+    if (
+      !confirm(
+        'Sản phẩm sẽ được chuyển sang trạng thái "Ngừng bán" và không còn hiển thị trên trang. Bạn có chắc không?',
+      )
+    )
+      return;
 
+    try {
+      await productAPI.discontinue(productId);
+      await loadProducts();
+      toast.success("Đã ngừng bán sản phẩm!");
+    } catch (error) {
+      toast.error("Không thể ngừng bán sản phẩm: " + error.message);
+    }
+  };
+
+  const handleReactivateProduct = async (productId) => {
     try {
       const product = products.find((p) => p.id === productId);
       if (!product) throw new Error("Không tìm thấy sản phẩm");
-      await productAPI.delete(product);
+      await productAPI.update({ ...product, id: productId, status: "ACTIVE" });
       await loadProducts();
-      toast.success("Đã xóa sản phẩm!");
+      toast.success("Đã kích hoạt lại sản phẩm!");
     } catch (error) {
-      toast.error("Không thể xóa sản phẩm: " + error.message);
+      toast.error("Không thể kích hoạt: " + error.message);
     }
   };
 
@@ -624,17 +639,21 @@ export function AdminPage({ user, onLogout }) {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                product.status === "ACTIVE"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {product.status === "ACTIVE"
-                                ? "Đang bán"
-                                : product.status}
-                            </span>
+                            {product.productStatus === "active" && (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                Còn hàng
+                              </span>
+                            )}
+                            {product.productStatus === "outofstock" && (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                                Hết hàng
+                              </span>
+                            )}
+                            {product.productStatus === "discontinued" && (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">
+                                Ngừng bán
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
@@ -645,13 +664,27 @@ export function AdminPage({ user, onLogout }) {
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="p-2 hover:bg-red-100 text-red-600 rounded transition-colors"
-                                title="Xóa sản phẩm"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {product.productStatus === "discontinued" ? (
+                                <button
+                                  onClick={() =>
+                                    handleReactivateProduct(product.id)
+                                  }
+                                  className="p-2 hover:bg-green-100 text-green-600 rounded transition-colors"
+                                  title="Kích hoạt lại"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    handleDeleteProduct(product.id)
+                                  }
+                                  className="p-2 hover:bg-red-100 text-red-600 rounded transition-colors"
+                                  title="Ngừng bán"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
