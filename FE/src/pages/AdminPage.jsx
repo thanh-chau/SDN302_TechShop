@@ -806,22 +806,26 @@ export function AdminPage({ user, onLogout }) {
                     <tbody className="divide-y">
                       {users.map((u) => (
                         <tr key={u.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-semibold">{u.id}</td>
-                          <td className="px-4 py-3">{u.fullName}</td>
+                          <td className="px-4 py-3 font-semibold text-xs text-gray-500">
+                            {String(u.id).slice(-8)}
+                          </td>
+                          <td className="px-4 py-3">{u.name}</td>
                           <td className="px-4 py-3">{u.email}</td>
                           <td className="px-4 py-3">
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                u.role === "ADMIN"
+                                u.role === "admin"
                                   ? "bg-red-100 text-red-700"
-                                  : u.role === "STAFF"
+                                  : u.role === "staff"
                                     ? "bg-blue-100 text-blue-700"
-                                    : u.role === "MANAGER"
-                                      ? "bg-purple-100 text-purple-700"
-                                      : "bg-gray-100 text-gray-700"
+                                    : "bg-gray-100 text-gray-700"
                               }`}
                             >
-                              {u.role}
+                              {u.role === "admin"
+                                ? "Admin"
+                                : u.role === "staff"
+                                  ? "Staff"
+                                  : "Buyer"}
                             </span>
                           </td>
                         </tr>

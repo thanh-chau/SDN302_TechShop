@@ -394,10 +394,26 @@ export const fileAPI = {
 
 // ==================== USER API ====================
 export const userAPI = {
-  // Get all users (admin only)
+  // Get all users (admin/staff only)
   getAll: async () => {
-    return apiRequest("/api/user", {
+    return apiRequest("/api/auth/users", {
       method: "GET",
+    });
+  },
+
+  // Update own profile (name, phone, address)
+  updateProfile: async (data) => {
+    return apiRequest("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Change password
+  changePassword: async (currentPassword, newPassword) => {
+    return apiRequest("/api/auth/change-password", {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, newPassword }),
     });
   },
 
