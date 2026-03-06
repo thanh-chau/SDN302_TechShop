@@ -13,29 +13,31 @@ export function WishlistModal({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-gradient-to-r from-red-500 to-pink-600 p-6 flex items-center justify-between rounded-t-2xl z-10">
             <div className="flex items-center gap-3">
-              <Heart className="w-8 h-8 text-red-600" fill="#dc2626" />
-              <h2 className="text-2xl font-bold text-gray-900">
+              <div className="bg-white/20 p-2 rounded-xl">
+                <Heart className="w-6 h-6 text-white" fill="white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">
                 Sản phẩm yêu thích
               </h2>
               {wishlist.length > 0 && (
-                <span className="bg-red-100 text-red-600 text-sm font-semibold px-2.5 py-0.5 rounded-full">
+                <span className="bg-white/25 text-white text-sm font-semibold px-2.5 py-0.5 rounded-full">
                   {wishlist.length}
                 </span>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-white/20 text-white rounded-full transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -45,7 +47,9 @@ export function WishlistModal({
           <div className="p-6">
             {wishlist.length === 0 ? (
               <div className="text-center py-16">
-                <Heart className="w-20 h-20 text-gray-200 mx-auto mb-4" />
+                <div className="bg-pink-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Heart className="w-12 h-12 text-pink-200" />
+                </div>
                 <p className="text-xl font-semibold text-gray-500 mb-2">
                   Chưa có sản phẩm yêu thích
                 </p>
@@ -58,7 +62,7 @@ export function WishlistModal({
                 {wishlist.map((product) => (
                   <div
                     key={product.id}
-                    className="bg-white border-2 border-gray-100 rounded-xl overflow-hidden hover:border-red-400 hover:shadow-lg transition-all duration-300 group"
+                    className="bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group"
                   >
                     {/* Image */}
                     <div
