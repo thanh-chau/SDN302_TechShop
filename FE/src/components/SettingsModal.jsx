@@ -88,34 +88,39 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-2xl w-full max-w-lg shadow-2xl"
+          className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-bold text-gray-900">
-              Cài đặt tài khoản
-            </h2>
+          <div className="flex items-center justify-between p-6 bg-gradient-to-r from-slate-700 to-slate-800 rounded-t-2xl">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-xl">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-white">
+                Cài đặt tài khoản
+              </h2>
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-white/20 text-white rounded-full transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b">
+          <div className="flex bg-gray-50 border-b">
             <button
               onClick={() => setActiveTab("profile")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all ${
                 activeTab === "profile"
-                  ? "border-b-2 border-red-600 text-red-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white border-b-2 border-slate-700 text-slate-700 shadow-sm"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
               }`}
             >
               <User className="w-4 h-4" />
@@ -123,10 +128,10 @@ export function SettingsModal({ isOpen, onClose, user, onProfileUpdated }) {
             </button>
             <button
               onClick={() => setActiveTab("password")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all ${
                 activeTab === "password"
-                  ? "border-b-2 border-red-600 text-red-600"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white border-b-2 border-slate-700 text-slate-700 shadow-sm"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
               }`}
             >
               <Lock className="w-4 h-4" />
