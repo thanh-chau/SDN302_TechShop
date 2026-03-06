@@ -1,4 +1,4 @@
-import { ChevronRight, ShoppingCart, Star } from "lucide-react";
+import { ChevronRight, ShoppingCart, Star, Heart } from "lucide-react";
 import { useState } from "react";
 
 export function ProductGrid({
@@ -7,6 +7,8 @@ export function ProductGrid({
   onAddToCart,
   onProductClick,
   products,
+  onToggleWishlist,
+  wishlistIds = new Set(),
 }) {
   const [showAll, setShowAll] = useState(false);
 
@@ -29,17 +31,6 @@ export function ProductGrid({
   const categoryProducts = showAll
     ? allCategoryProducts
     : allCategoryProducts.slice(0, 6);
-
-  // Debug log
-  console.log(`ProductGrid "${title}" (${category}):`, {
-    totalProducts: products?.length || 0,
-    filteredProducts: categoryProducts.length,
-    totalInCategory: allCategoryProducts.length,
-    showAll,
-    categories: products
-      ?.map((p) => p.category)
-      .filter((v, i, a) => a.indexOf(v) === i),
-  });
 
   return (
     <section className="py-4">
@@ -83,6 +74,27 @@ export function ProductGrid({
                 alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
               />
+              {/* Wishlist Heart Button */}
+              {onToggleWishlist && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWishlist(product);
+                  }}
+                  className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md hover:scale-110 transition-transform z-10"
+                  title={
+                    wishlistIds.has(product.id)
+                      ? "Xóa khỏi yêu thích"
+                      : "Thêm vào yêu thích"
+                  }
+                >
+                  <Heart
+                    className="w-4 h-4"
+                    fill={wishlistIds.has(product.id) ? "#dc2626" : "none"}
+                    stroke={wishlistIds.has(product.id) ? "#dc2626" : "#9ca3af"}
+                  />
+                </button>
+              )}
             </div>
 
             {/* Product Info */}

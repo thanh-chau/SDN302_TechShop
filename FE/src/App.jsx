@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Header } from "./components/Header";
 import { HeroBanner } from "./components/HeroBanner";
 import { FlashSale } from "./components/FlashSale";
@@ -12,6 +12,7 @@ import { StaffDashboard } from "./components/StaffDashboard";
 import { CheckoutModal } from "./components/CheckoutModal";
 import { OrderHistory } from "./components/OrderHistory";
 import { SettingsModal } from "./components/SettingsModal";
+import { WishlistModal } from "./components/WishlistModal";
 import { ChatBox, ChatButton } from "./components/ChatBox";
 import { AdminPage } from "./pages/AdminPage";
 import { StaffPage } from "./pages/StaffPage";
@@ -31,6 +32,8 @@ export default function App() {
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
+  const [wishlist, setWishlist] = useState([]);
   const [chatOpen, setChatOpen] = useState(false);
   const [viewMode, setViewMode] = useState("shop"); // "shop", "admin", or "staff"
   const [orders, setOrders] = useState([]);
@@ -44,6 +47,9 @@ export default function App() {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
+        // Load wishlist for this user
+        const saved = localStorage.getItem(`wishlist_${userData.id}`);
+        if (saved) setWishlist(JSON.parse(saved));
         // Set viewMode based on role
         if (userData.role === "admin") {
           setViewMode("admin");
@@ -64,7 +70,6 @@ export default function App() {
       try {
         setLoading(true);
         const data = await productAPI.getAll();
-        console.log("📦 Loaded products from API:", data);
 
         // Transform API products to UI format
         const transformedProducts = (data || []).map((product) => ({
@@ -77,11 +82,6 @@ export default function App() {
           rating: 4.5, // Default rating since API doesn't provide it
           reviews: 0, // Default reviews
         }));
-
-        console.log("✅ Transformed products:", transformedProducts);
-        console.log("📊 Categories found:", [
-          ...new Set(transformedProducts.map((p) => p.category)),
-        ]);
 
         setProducts(transformedProducts);
       } catch (error) {
@@ -155,10 +155,17 @@ export default function App() {
       }
     };
 
+    const handleOpenWishlist = () => {
+      if (user) {
+        setWishlistOpen(true);
+      }
+    };
+
     window.addEventListener("openAdminDashboard", handleOpenAdminDashboard);
     window.addEventListener("openOrderHistory", handleOpenOrderHistory);
     window.addEventListener("openProfile", handleOpenProfile);
     window.addEventListener("openSettings", handleOpenSettings);
+    window.addEventListener("openWishlist", handleOpenWishlist);
 
     return () => {
       window.removeEventListener(
@@ -168,8 +175,30 @@ export default function App() {
       window.removeEventListener("openOrderHistory", handleOpenOrderHistory);
       window.removeEventListener("openProfile", handleOpenProfile);
       window.removeEventListener("openSettings", handleOpenSettings);
+      window.removeEventListener("openWishlist", handleOpenWishlist);
     };
   }, [user]);
+
+  const toggleWishlist = (product) => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+    setWishlist((prev) => {
+      const exists = prev.find((p) => p.id === product.id);
+      const updated = exists
+        ? prev.filter((p) => p.id !== product.id)
+        : [...prev, product];
+      localStorage.setItem(`wishlist_${user.id}`, JSON.stringify(updated));
+      toast.success(exists ? "Đã xóa khỏi yêu thích" : "Đã thêm vào yêu thích");
+      return updated;
+    });
+  };
+
+  const wishlistIds = useMemo(
+    () => new Set(wishlist.map((p) => p.id)),
+    [wishlist],
+  );
 
   const addToCart = async (product) => {
     if (!user || !user.id) {
@@ -523,6 +552,8 @@ export default function App() {
               onAddToCart={addToCart}
               onProductClick={setSelectedProduct}
               products={products}
+              onToggleWishlist={toggleWishlist}
+              wishlistIds={wishlistIds}
             />
 
             <div className="max-w-7xl mx-auto px-4 py-8 space-y-12">
@@ -533,6 +564,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
               <div id="category-phone">
@@ -542,6 +575,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
               <div id="category-tablet">
@@ -551,6 +586,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
               <div id="category-audio">
@@ -560,6 +597,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
               <div id="category-accessories">
@@ -569,6 +608,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
               <div id="category-monitor">
@@ -578,6 +619,8 @@ export default function App() {
                   onAddToCart={addToCart}
                   onProductClick={setSelectedProduct}
                   products={products}
+                  onToggleWishlist={toggleWishlist}
+                  wishlistIds={wishlistIds}
                 />
               </div>
             </div>
@@ -635,6 +678,18 @@ export default function App() {
             user={user}
             onProfileUpdated={(updatedUser) => {
               setUser((prev) => ({ ...prev, ...updatedUser }));
+            }}
+          />
+
+          <WishlistModal
+            isOpen={wishlistOpen}
+            onClose={() => setWishlistOpen(false)}
+            wishlist={wishlist}
+            onRemoveFromWishlist={(id) => toggleWishlist({ id })}
+            onAddToCart={addToCart}
+            onProductClick={(product) => {
+              setSelectedProduct(product);
+              setWishlistOpen(false);
             }}
           />
 

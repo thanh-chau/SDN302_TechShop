@@ -64,6 +64,12 @@ export function UserMenu({ user, onLoginClick, onLogout }) {
     setIsOpen(false);
   };
 
+  const openWishlist = () => {
+    const event = new CustomEvent("openWishlist");
+    window.dispatchEvent(event);
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -132,13 +138,13 @@ export function UserMenu({ user, onLoginClick, onLogout }) {
               <span>Đơn hàng của tôi</span>
             </button>
 
-            <a
-              href="#"
-              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+            <button
+              onClick={openWishlist}
+              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors text-left"
             >
               <Heart className="w-5 h-5 text-gray-600" />
               <span>Sản phẩm yêu thích</span>
-            </a>
+            </button>
 
             <button
               onClick={openSettings}
