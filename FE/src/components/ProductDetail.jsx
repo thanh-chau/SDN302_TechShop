@@ -1,6 +1,34 @@
-import { X, ShoppingCart, Star, Package, Shield, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  X,
+  ShoppingCart,
+  Star,
+  Package,
+  Shield,
+  Zap,
+  User,
+} from "lucide-react";
+import { reviewAPI } from "../utils/api";
 
 export function ProductDetail({ product, onClose, onAddToCart }) {
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  useEffect(() => {
+    if (!product?.id) return;
+    setLoadingReviews(true);
+    reviewAPI
+      .getByProduct(product.id)
+      .then((data) => {
+        setReviews(data.reviews || []);
+        setAvgRating(data.avgRating || 0);
+        setReviewCount(data.total || 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingReviews(false));
+  }, [product?.id]);
   if (!product) return null;
 
   return (
@@ -52,20 +80,20 @@ export function ProductDetail({ product, onClose, onAddToCart }) {
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
-                          className={`w-5 h-5 ${
-                            i < Math.floor(product.rating)
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300"
-                          }`}
+                          className="w-5 h-5"
+                          fill={i < Math.floor(avgRating) ? "#facc15" : "none"}
+                          stroke={
+                            i < Math.floor(avgRating) ? "#facc15" : "#d1d5db"
+                          }
                         />
                       ))}
                     </div>
                     <span className="text-lg font-semibold">
-                      {product.rating}
+                      {avgRating > 0 ? avgRating.toFixed(1) : "Chưa có"}
                     </span>
                   </div>
                   <span className="text-gray-500">
-                    ({product.reviews} đánh giá)
+                    ({reviewCount} đánh giá)
                   </span>
                 </div>
 
@@ -160,6 +188,76 @@ export function ProductDetail({ product, onClose, onAddToCart }) {
                   </span>
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="px-8 pb-8">
+            <div className="border-t pt-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Đánh giá sản phẩm
+                {reviewCount > 0 && (
+                  <span className="ml-2 text-base font-normal text-gray-500">
+                    ({reviewCount} đánh giá · trung bình{" "}
+                    <span className="text-amber-500 font-semibold">
+                      {avgRating.toFixed(1)} ⭐
+                    </span>
+                    )
+                  </span>
+                )}
+              </h3>
+
+              {loadingReviews ? (
+                <p className="text-gray-400 text-sm">Đang tải đánh giá...</p>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-xl">
+                  <Star className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500">
+                    Chưa có đánh giá nào. Hãy là người đầu tiên!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="bg-gray-50 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="font-semibold text-sm text-gray-900">
+                              {review.userName || "Khách hàng"}
+                            </span>
+                            <span className="text-xs text-gray-400 flex-shrink-0">
+                              {new Date(review.createdAt).toLocaleDateString(
+                                "vi-VN",
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mb-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className="w-4 h-4"
+                                fill={i < review.rating ? "#f59e0b" : "none"}
+                                stroke={
+                                  i < review.rating ? "#f59e0b" : "#d1d5db"
+                                }
+                              />
+                            ))}
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                              {review.comment}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

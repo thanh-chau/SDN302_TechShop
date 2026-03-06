@@ -7,11 +7,48 @@
   Phone,
   User,
   XCircle,
+  Star,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { orderAPI } from "../utils/api";
+import { orderAPI, reviewAPI } from "../utils/api";
+import { ReviewModal } from "./ReviewModal";
 
 export function OrderHistory({ isOpen, onClose, orders, onOrderCancelled }) {
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewedItems, setReviewedItems] = useState(new Set());
+
+  // Khi mở modal hoặc orders thay đổi: fetch trạng thái đã review từ BE
+  useEffect(() => {
+    if (!isOpen) return;
+    const completedOrders = orders.filter((o) => o.status === "completed");
+    if (completedOrders.length === 0) return;
+
+    const checks = [];
+    completedOrders.forEach((order) => {
+      (order.orderItems || order.items || []).forEach((item) => {
+        if (item.productId) {
+          checks.push(
+            reviewAPI
+              .checkReviewed(item.productId, order.id)
+              .then((res) => {
+                if (res.reviewed) return `${order.id}_${item.productId}`;
+                return null;
+              })
+              .catch(() => null),
+          );
+        }
+      });
+    });
+
+    Promise.all(checks).then((results) => {
+      const keys = results.filter(Boolean);
+      if (keys.length > 0) {
+        setReviewedItems(new Set(keys));
+      }
+    });
+  }, [isOpen, orders]);
+
   if (!isOpen) return null;
 
   const getStatusColor = (status) => {
@@ -68,6 +105,17 @@ export function OrderHistory({ isOpen, onClose, orders, onOrderCancelled }) {
     } catch (error) {
       toast.error("Khong the huy don hang: " + error.message);
     }
+  };
+
+  const isReviewed = (orderId, productId) =>
+    reviewedItems.has(`${orderId}_${productId}`);
+
+  const handleReviewDone = () => {
+    if (reviewTarget) {
+      const key = `${reviewTarget.order.id}_${reviewTarget.item.productId}`;
+      setReviewedItems((prev) => new Set([...prev, key]));
+    }
+    setReviewTarget(null);
   };
 
   return (
@@ -191,6 +239,28 @@ export function OrderHistory({ isOpen, onClose, orders, onOrderCancelled }) {
                               <p className="text-gray-500 text-sm">
                                 Số lượng: {item.quantity || 0}
                               </p>
+                              {/* Nút đánh giá - chỉ hiện khi đơn hoàn thành */}
+                              {order.status === "completed" &&
+                                (isReviewed(order.id, item.productId) ? (
+                                  <span className="inline-flex items-center gap-1 text-xs text-amber-600 mt-1">
+                                    <Star
+                                      className="w-3 h-3"
+                                      fill="#d97706"
+                                      stroke="#d97706"
+                                    />
+                                    Đã đánh giá
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      setReviewTarget({ order, item })
+                                    }
+                                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 border border-red-300 hover:border-red-500 px-2 py-0.5 rounded-lg mt-1 transition-colors"
+                                  >
+                                    <Star className="w-3 h-3" />
+                                    Đánh giá
+                                  </button>
+                                ))}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="font-bold text-red-600">
@@ -258,6 +328,13 @@ export function OrderHistory({ isOpen, onClose, orders, onOrderCancelled }) {
           </div>
         </div>
       </div>
+
+      <ReviewModal
+        isOpen={!!reviewTarget}
+        onClose={handleReviewDone}
+        order={reviewTarget?.order}
+        item={reviewTarget?.item}
+      />
     </>
   );
 }

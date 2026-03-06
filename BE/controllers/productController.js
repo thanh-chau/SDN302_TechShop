@@ -1,6 +1,29 @@
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const Brand = require("../models/Brand");
+const Review = require("../models/Review");
+
+// Build a map of productId -> { avgRating, reviewCount } from Review collection
+const getReviewStats = async (productIds) => {
+  const stats = await Review.aggregate([
+    { $match: { productId: { $in: productIds } } },
+    {
+      $group: {
+        _id: "$productId",
+        avgRating: { $avg: "$rating" },
+        reviewCount: { $sum: 1 },
+      },
+    },
+  ]);
+  const map = {};
+  stats.forEach((s) => {
+    map[s._id.toString()] = {
+      avgRating: Math.round(s.avgRating * 10) / 10,
+      reviewCount: s.reviewCount,
+    };
+  });
+  return map;
+};
 
 const getOrCreateCategory = async (name) => {
   if (!name || !String(name).trim()) return null;
@@ -31,19 +54,31 @@ const list = async (req, res) => {
       .populate("category", "name")
       .populate("brand", "name")
       .lean();
-    const list = products.map((p) => ({
-      id: p._id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      stock: p.stock,
-      stockQuantity: p.stock,
-      category: p.category?.name || p.category,
-      imgUrl: p.images?.[0] || null,
-      image: p.images?.[0] || null,
-      isActive: p.isActive,
-      productStatus: deriveStatus(p.isActive, p.stock),
-    }));
+
+    const productIds = products.map((p) => p._id);
+    const reviewStats = await getReviewStats(productIds);
+
+    const list = products.map((p) => {
+      const stats = reviewStats[p._id.toString()] || {
+        avgRating: 0,
+        reviewCount: 0,
+      };
+      return {
+        id: p._id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        stockQuantity: p.stock,
+        category: p.category?.name || p.category,
+        imgUrl: p.images?.[0] || null,
+        image: p.images?.[0] || null,
+        isActive: p.isActive,
+        productStatus: deriveStatus(p.isActive, p.stock),
+        avgRating: stats.avgRating,
+        reviewCount: stats.reviewCount,
+      };
+    });
     res.json(list);
   } catch (err) {
     console.error("Product list error:", err);
@@ -58,19 +93,31 @@ const listAll = async (req, res) => {
       .populate("category", "name")
       .populate("brand", "name")
       .lean();
-    const list = products.map((p) => ({
-      id: p._id,
-      name: p.name,
-      description: p.description,
-      price: p.price,
-      stock: p.stock,
-      stockQuantity: p.stock,
-      category: p.category?.name || p.category,
-      imgUrl: p.images?.[0] || null,
-      image: p.images?.[0] || null,
-      isActive: p.isActive,
-      productStatus: deriveStatus(p.isActive, p.stock),
-    }));
+
+    const productIds = products.map((p) => p._id);
+    const reviewStats = await getReviewStats(productIds);
+
+    const list = products.map((p) => {
+      const stats = reviewStats[p._id.toString()] || {
+        avgRating: 0,
+        reviewCount: 0,
+      };
+      return {
+        id: p._id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        stockQuantity: p.stock,
+        category: p.category?.name || p.category,
+        imgUrl: p.images?.[0] || null,
+        image: p.images?.[0] || null,
+        isActive: p.isActive,
+        productStatus: deriveStatus(p.isActive, p.stock),
+        avgRating: stats.avgRating,
+        reviewCount: stats.reviewCount,
+      };
+    });
     res.json(list);
   } catch (err) {
     console.error("Product listAll error:", err);

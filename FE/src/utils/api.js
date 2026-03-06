@@ -425,10 +425,36 @@ export const userAPI = {
   },
 };
 
+export const reviewAPI = {
+  // Tạo đánh giá cho sản phẩm trong đơn hàng đã hoàn thành
+  create: async (productId, orderId, rating, comment) => {
+    return apiRequest("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify({ productId, orderId, rating, comment }),
+    });
+  },
+
+  // Lấy tất cả đánh giá của sản phẩm
+  getByProduct: async (productId) => {
+    return apiRequest(`/api/reviews/product/${productId}`, { method: "GET" });
+  },
+
+  // Kiểm tra user đã review sản phẩm trong đơn hàng chưa
+  checkReviewed: async (productId, orderId) => {
+    return apiRequest(
+      `/api/reviews/check?productId=${productId}&orderId=${orderId}`,
+      {
+        method: "GET",
+      },
+    );
+  },
+};
+
 export default {
   auth: authAPI,
   product: productAPI,
   cart: cartAPI,
   order: orderAPI,
   user: userAPI,
+  review: reviewAPI,
 };
