@@ -47,10 +47,50 @@ const deriveStatus = (isActive, stock) => {
   return "active"; // Còn hàng
 };
 
-// Home page: only show "còn hàng" (isActive=true AND stock>0)
+// Helper: product đang trong flash sale khi có flashSalePrice và flashSaleEnd > now
+const isFlashSaleActive = (p) =>
+  p.flashSalePrice != null &&
+  p.flashSaleEnd &&
+  new Date(p.flashSaleEnd) > new Date();
+
+const toProductDto = (p, stats) => {
+  const flashActive = isFlashSaleActive(p);
+  const displayPrice = flashActive ? p.flashSalePrice : p.price;
+  const discount =
+    flashActive && p.price > 0
+      ? Math.round((1 - p.flashSalePrice / p.price) * 100)
+      : 0;
+  return {
+    id: p._id,
+    name: p.name,
+    description: p.description,
+    price: displayPrice,
+    originalPrice: flashActive ? p.price : undefined,
+    stock: p.stock,
+    stockQuantity: p.stock,
+    category: p.category?.name || p.category,
+    imgUrl: p.images?.[0] || null,
+    image: p.images?.[0] || null,
+    isActive: p.isActive,
+    productStatus: deriveStatus(p.isActive, p.stock),
+    avgRating: (stats && stats.avgRating) || 0,
+    reviewCount: (stats && stats.reviewCount) || 0,
+    discount: discount || undefined,
+    flashSalePrice: p.flashSalePrice || undefined,
+    flashSaleEnd: p.flashSaleEnd ? new Date(p.flashSaleEnd).toISOString() : undefined,
+  };
+};
+
+// Home page: only show "còn hàng" (isActive=true AND stock>0). Query ?flashSale=true = chỉ sản phẩm đang flash sale
 const list = async (req, res) => {
   try {
-    const products = await Product.find({ isActive: true, stock: { $gt: 0 } })
+    const flashSaleOnly = req.query.flashSale === "true";
+    const filter = { isActive: true, stock: { $gt: 0 } };
+    if (flashSaleOnly) {
+      filter.flashSalePrice = { $ne: null, $gt: 0 };
+      filter.flashSaleEnd = { $gt: new Date() };
+    }
+    const products = await Product.find(filter)
       .populate("category", "name")
       .populate("brand", "name")
       .lean();
@@ -63,21 +103,7 @@ const list = async (req, res) => {
         avgRating: 0,
         reviewCount: 0,
       };
-      return {
-        id: p._id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        stock: p.stock,
-        stockQuantity: p.stock,
-        category: p.category?.name || p.category,
-        imgUrl: p.images?.[0] || null,
-        image: p.images?.[0] || null,
-        isActive: p.isActive,
-        productStatus: deriveStatus(p.isActive, p.stock),
-        avgRating: stats.avgRating,
-        reviewCount: stats.reviewCount,
-      };
+      return toProductDto(p, stats);
     });
     res.json(list);
   } catch (err) {
@@ -102,21 +128,7 @@ const listAll = async (req, res) => {
         avgRating: 0,
         reviewCount: 0,
       };
-      return {
-        id: p._id,
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        stock: p.stock,
-        stockQuantity: p.stock,
-        category: p.category?.name || p.category,
-        imgUrl: p.images?.[0] || null,
-        image: p.images?.[0] || null,
-        isActive: p.isActive,
-        productStatus: deriveStatus(p.isActive, p.stock),
-        avgRating: stats.avgRating,
-        reviewCount: stats.reviewCount,
-      };
+      return toProductDto(p, stats);
     });
     res.json(list);
   } catch (err) {
@@ -152,6 +164,8 @@ const create = async (req, res) => {
       category: categoryId,
       brand: brandId,
       isActive: status !== "INACTIVE" && status !== "inactive",
+      flashSalePrice: req.body.flashSalePrice != null ? Number(req.body.flashSalePrice) : undefined,
+      flashSaleEnd: req.body.flashSaleEnd || undefined,
     });
     res.status(201).json({
       id: product._id,
@@ -178,6 +192,8 @@ const update = async (req, res) => {
       category,
       status,
       imgUrl,
+      flashSalePrice,
+      flashSaleEnd,
     } = req.body;
     if (!id) return res.status(400).json({ message: "Thiếu id sản phẩm" });
     const product = await Product.findById(id);
@@ -194,6 +210,34 @@ const update = async (req, res) => {
     if (imgUrl != null) product.images = [imgUrl];
     if (status != null)
       product.isActive = status !== "INACTIVE" && status !== "inactive";
+    if (flashSalePrice !== undefined) {
+      const v = flashSalePrice === "" || flashSalePrice == null ? null : Number(flashSalePrice);
+      if (v != null) {
+        if (!product.isActive || product.stock <= 0) {
+          return res.status(400).json({
+            message: "Chỉ sản phẩm đang bán và còn hàng mới được đưa vào Flash Sale. Sản phẩm ngừng bán hoặc hết hàng không thể Flash Sale.",
+          });
+        }
+        product.flashSalePrice = v;
+      } else {
+        product.flashSalePrice = null;
+        product.flashSaleEnd = null;
+      }
+    }
+    if (flashSaleEnd !== undefined) {
+      const endVal = flashSaleEnd && flashSaleEnd !== "" ? new Date(flashSaleEnd) : null;
+      if (endVal) {
+        if (!product.isActive || product.stock <= 0) {
+          return res.status(400).json({
+            message: "Chỉ sản phẩm đang bán và còn hàng mới được đưa vào Flash Sale. Sản phẩm ngừng bán hoặc hết hàng không thể Flash Sale.",
+          });
+        }
+        product.flashSaleEnd = endVal;
+      } else {
+        product.flashSaleEnd = null;
+        product.flashSalePrice = null;
+      }
+    }
     await product.save();
     res.json({
       id: product._id,

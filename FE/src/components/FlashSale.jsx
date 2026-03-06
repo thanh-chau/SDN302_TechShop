@@ -8,47 +8,38 @@ export function FlashSale({
   onToggleWishlist,
   wishlistIds = new Set(),
 }) {
-  const [timeLeft, setTimeLeft] = useState({
-    hours: 2,
-    minutes: 30,
-    seconds: 55,
-  });
+  // Sản phẩm đang flash sale: có flashSaleEnd (còn hạn) và (discount > 0 hoặc flashSalePrice)
+  const flashSaleProducts = (products || []).filter(
+    (p) =>
+      p.flashSaleEnd &&
+      new Date(p.flashSaleEnd) > new Date() &&
+      (p.discount > 0 || p.flashSalePrice)
+  ).slice(0, 10);
 
-  // Countdown timer
+  // Countdown: lấy thời điểm kết thúc sớm nhất trong danh sách
+  const endTime = flashSaleProducts.length > 0
+    ? flashSaleProducts.reduce((min, p) => {
+        const t = new Date(p.flashSaleEnd).getTime();
+        return t < min ? t : min;
+      }, Number.MAX_SAFE_INTEGER)
+    : null;
+
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        let { hours, minutes, seconds } = prev;
-
-        if (seconds > 0) {
-          seconds--;
-        } else if (minutes > 0) {
-          minutes--;
-          seconds = 59;
-        } else if (hours > 0) {
-          hours--;
-          minutes = 59;
-          seconds = 59;
-        } else {
-          // Reset timer when it reaches 0
-          hours = 2;
-          minutes = 30;
-          seconds = 55;
-        }
-
-        return { hours, minutes, seconds };
-      });
-    }, 1000);
-
+    if (!endTime) return;
+    const update = () => {
+      const now = Date.now();
+      const diff = Math.max(0, endTime - now);
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ hours, minutes, seconds });
+    };
+    update();
+    const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Only show products that have an active flash sale (discount > 0)
-  const flashSaleProducts = products
-    ? products
-        .filter((product) => product.discount && product.discount > 0)
-        .slice(0, 10)
-    : [];
+  }, [endTime]);
 
   const formatTime = (value) => String(value).padStart(2, "0");
 
