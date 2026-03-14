@@ -1,6 +1,0 @@
-services:
-  app:
-    image: ghcr.io/taiduc1001/swd392-frontend:latest
-    restart: always
-    ports:
-      - "80:80"
