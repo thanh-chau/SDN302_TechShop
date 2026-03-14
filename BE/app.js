@@ -17,18 +17,43 @@ var userRoutes = require("./routes/userRoutes");
 var authRouter = require("./routes/auth");
 var uploadRouter = require("./routes/upload");
 var productsRouter = require("./routes/products");
+var categoriesRouter = require("./routes/categories");
 var cartRouter = require("./routes/cart");
 var ordersRouter = require("./routes/orders");
 var reviewsRouter = require("./routes/reviews");
+var playersRouter = require("./routes/players");
 
 connectDB();
 
 var cors = require("cors");
 var app = express();
 
+// CORS: allow FE, MO, and public tunnels (ngrok, Cloudflare). Tunnels use https and mobile may send no origin.
+const isDev = process.env.NODE_ENV !== "production";
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  "http://localhost:5173",
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
+  "http://10.0.2.2:8081",
+  "http://10.0.2.2:5000",
+];
+const isTunnelOrigin = (origin) =>
+  typeof origin === "string" &&
+  (origin.startsWith("https://") ||
+    /\.ngrok\.(io|dev|app)$/i.test(origin) ||
+    /\.trycloudflare\.com$/i.test(origin) ||
+    /\.loca\.lt$/i.test(origin));
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, cb) => {
+      if (isDev) return cb(null, true);
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.some((o) => origin === o)) return cb(null, true);
+      if (origin.startsWith("exp://") || origin.startsWith("http://192.168.") || origin.startsWith("http://10.0.")) return cb(null, true);
+      if (isTunnelOrigin(origin)) return cb(null, true);
+      cb(null, false);
+    },
     credentials: true,
   }),
 );
@@ -49,9 +74,11 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRouter);
 app.use("/api/files", uploadRouter);
 app.use("/api/products", productsRouter);
+app.use("/api/categories", categoriesRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/reviews", reviewsRouter);
+app.use("/api/players", playersRouter);
 
 app.use(notFound);
 app.use(errorHandler);

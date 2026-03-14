@@ -27,10 +27,10 @@ app.set('port', port);
 var server = http.createServer(app);
 
 /**
- * Listen on provided port, on all network interfaces.
+ * Listen on provided port, on all network interfaces (0.0.0.0) để Android emulator / thiết bị trong mạng gọi được.
  */
-
-server.listen(port);
+const host = process.env.HOST || '0.0.0.0';
+server.listen(port, host);
 server.on('error', onError);
 server.on('listening', onListening);
 
@@ -92,4 +92,5 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
+  console.log('Server listening on ' + host + ':' + port + ' (use tunnel URL in mobile EXPO_PUBLIC_API_URL)');
 }
