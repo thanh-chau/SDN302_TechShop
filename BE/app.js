@@ -2,8 +2,14 @@ var path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // Kiểm tra Google OAuth ngay khi khởi động (để dễ debug)
-const hasGoogleClientId = (process.env.GOOGLE_CLIENT_ID || "").trim().length > 0;
-console.log("[Auth] Đăng nhập Google:", hasGoogleClientId ? "đã cấu hình" : "CHƯA cấu hình (thêm GOOGLE_CLIENT_ID vào BE/.env và restart)");
+const hasGoogleClientId =
+  (process.env.GOOGLE_CLIENT_ID || "").trim().length > 0;
+console.log(
+  "[Auth] Đăng nhập Google:",
+  hasGoogleClientId
+    ? "đã cấu hình"
+    : "CHƯA cấu hình (thêm GOOGLE_CLIENT_ID vào BE/.env và restart)",
+);
 
 var express = require("express");
 var cookieParser = require("cookie-parser");
@@ -51,7 +57,12 @@ app.use(
       if (isDev) return cb(null, true);
       if (!origin) return cb(null, true);
       if (allowedOrigins.some((o) => origin === o)) return cb(null, true);
-      if (origin.startsWith("exp://") || origin.startsWith("http://192.168.") || origin.startsWith("http://10.0.")) return cb(null, true);
+      if (
+        origin.startsWith("exp://") ||
+        origin.startsWith("http://192.168.") ||
+        origin.startsWith("http://10.0.")
+      )
+        return cb(null, true);
       if (isTunnelOrigin(origin)) return cb(null, true);
       cb(null, false);
     },
@@ -63,9 +74,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// view engine setup
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "jade");
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
