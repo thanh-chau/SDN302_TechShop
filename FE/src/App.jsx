@@ -26,18 +26,14 @@ export default function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  const role = user?.role != null ? String(user.role).trim().toLowerCase() : null;
+
   if (window.location.pathname === "/payment/return")
     return <PaymentReturnPage />;
-  if (user?.role === "admin" && viewMode === "admin")
+  if (role === "admin" && viewMode === "admin")
     return <AdminPage user={user} onLogout={handleLogout} />;
-  if (user?.role === "staff" && viewMode === "staff")
-    return (
-      <StaffPage
-        user={user}
-        onLogout={handleLogout}
-        onBackToShop={() => setViewMode("shop")}
-      />
-    );
+  if (role === "staff" && viewMode === "staff")
+    return <StaffPage user={user} onLogout={handleLogout} />;
 
   return (
     <HomePage

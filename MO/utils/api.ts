@@ -47,7 +47,16 @@ export const getStoredUser = async (): Promise<{ token: string; name?: string; e
   try {
     const raw = await AsyncStorage.getItem(USER_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as { token?: string; id?: string; _id?: string; name?: string; email?: string; role?: string };
+    // Cần có token để coi là đã đăng nhập (gọi API cart/orders cần Bearer)
+    const tokenRaw = parsed?.token;
+    const token = tokenRaw != null && tokenRaw !== '' ? String(tokenRaw) : undefined;
+    if (!token) return null;
+    // Đảm bảo luôn có id (BE có thể trả _id)
+    const id = parsed.id ?? parsed._id;
+    const idStr = id != null ? String(id) : undefined;
+    const role = parsed.role != null ? String(parsed.role).trim().toLowerCase() : undefined;
+    return { ...parsed, token, id: idStr, role: role || 'buyer' } as { token: string; name?: string; email?: string; role?: string; id?: string };
   } catch {
     return null;
   }
@@ -62,14 +71,22 @@ export const setStoredUser = async (user: object | null): Promise<void> => {
   }
 };
 
+/** Lấy token từ AsyncStorage. Retry 1 lần sau 150ms nếu null (tránh race khi vừa đăng nhập). */
 const getAuthToken = async (): Promise<string | null> => {
-  const user = await getStoredUser();
+  let user = await getStoredUser();
+  if (user?.token) return user.token;
+  await new Promise((r) => setTimeout(r, 150));
+  user = await getStoredUser();
   return user?.token ?? null;
 };
 
-const REQUEST_TIMEOUT_MS = 15000;
+/** Timeout gọi BE. Tăng lên 25s vì ngrok/network đôi khi chậm. */
+const REQUEST_TIMEOUT_MS = 25000;
 
-const apiRequest = async <T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+/** Options cho apiRequest; authToken truyền vào sẽ ưu tiên dùng (tránh race sau khi đăng nhập). */
+type ApiOptions = RequestInit & { authToken?: string | null };
+
+const apiRequest = async <T = unknown>(endpoint: string, options: ApiOptions = {}): Promise<T> => {
   const base = getResolvedBaseUrl();
   const url = `${base}${endpoint}`;
   if (!API_BASE_URL || !API_BASE_URL.trim()) {
@@ -77,22 +94,28 @@ const apiRequest = async <T = unknown>(endpoint: string, options: RequestInit = 
     throw new Error('Chưa cấu hình API. Đặt EXPO_PUBLIC_API_URL trong file .env và chạy lại Expo.');
   }
 
-  const token = await getAuthToken();
-  const headers: HeadersInit = {
+  const { authToken: tokenOverride, ...restOptions } = options;
+  const tokenFromCaller = tokenOverride != null && tokenOverride !== '' ? String(tokenOverride).trim() : null;
+  const token = tokenFromCaller ?? (await getAuthToken());
+  const tokenStr = token != null ? String(token).trim() : '';
+  // Dùng object thuần để đảm bảo header được gửi đúng (React Native fetch)
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(restOptions.headers as Record<string, string>),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (tokenStr) headers['Authorization'] = `Bearer ${tokenStr}`;
+  // Ngrok free tier: gửi header này để request không bị chặn / strip header
+  if (base.includes('ngrok')) headers['ngrok-skip-browser-warning'] = '1';
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, REQUEST_TIMEOUT_MS);
-  const signal = options.signal ?? controller.signal;
+  const signal = restOptions.signal ?? controller.signal;
 
   let res: Response;
   try {
-    res = await fetch(url, { ...options, headers, signal });
+    res = await fetch(url, { ...restOptions, headers, signal });
   } catch (err) {
     clearTimeout(timeoutId);
     const isTimeout = (err as Error)?.name === 'AbortError';
@@ -119,6 +142,8 @@ const apiRequest = async <T = unknown>(endpoint: string, options: RequestInit = 
       msg = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
     } else if (res.status === 409) {
       msg = 'Email đã tồn tại. Vui lòng dùng email khác.';
+    } else if (res.status === 401) {
+      // Không xóa session từ đây — lỗi 401 có thể do ngrok chưa gửi được header, không liên quan đến session lưu trên máy
     }
     logApi('BE trả lỗi HTTP.', { url, status: res.status, message: msg });
     throw new Error(msg);
@@ -173,6 +198,105 @@ export const categoriesAPI = {
 // ==================== PRODUCTS ====================
 export const productAPI = {
   getAll: () => apiRequest<unknown[]>('/api/products', { method: 'GET' }),
+  /** Admin: tất cả sản phẩm (cả ngừng bán, hết hàng). Truyền authToken để tránh 401 khi vừa đăng nhập. */
+  getAllAdmin: (authToken?: string | null) =>
+    apiRequest<unknown[]>('/api/products/admin', { method: 'GET', authToken }),
+  create: (data: Record<string, unknown>, authToken?: string | null) =>
+    apiRequest('/api/products', { method: 'POST', body: JSON.stringify(data), authToken }),
+  update: (data: Record<string, unknown>, authToken?: string | null) =>
+    apiRequest('/api/products', { method: 'PUT', body: JSON.stringify(data), authToken }),
+  discontinue: (productId: string, authToken?: string | null) =>
+    apiRequest(`/api/products/${encodeURIComponent(productId)}`, { method: 'DELETE', authToken }),
+};
+
+// ==================== ORDERS (admin: getAll, updateStatus, delete) ====================
+export const orderAPI = {
+  getAll: (authToken?: string | null) =>
+    apiRequest<unknown[]>('/api/orders', { method: 'GET', authToken }),
+  updateStatus: (orderId: string, status: string, authToken?: string | null) =>
+    apiRequest(`/api/orders/${encodeURIComponent(orderId)}/status?status=${encodeURIComponent(status)}`, { method: 'PUT', authToken }),
+  delete: (orderId: string, authToken?: string | null) =>
+    apiRequest(`/api/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE', authToken }),
+};
+
+// ==================== USERS (admin: getAll) ====================
+export const userAPI = {
+  getAll: (authToken?: string | null) =>
+    apiRequest<unknown[]>('/api/auth/users', { method: 'GET', authToken }),
+};
+
+// ==================== CART (giống FE: BE /api/cart, cần đăng nhập) ====================
+export type CartItemResponse = {
+  id: string;
+  productId: string;
+  productName: string;
+  priceAtTime: number;
+  quantity: number;
+  imageUrl?: string | null;
+};
+
+export const cartAPI = {
+  /** Lấy giỏ hàng. Có thể truyền authToken khi vừa đăng nhập để tránh race với AsyncStorage. */
+  getByUserId: (userId: string, authToken?: string | null) =>
+    apiRequest<{ cartItems: CartItemResponse[] }>(`/api/cart/${userId}`, { method: 'GET', authToken }),
+
+  addProduct: (userId: string, productId: string, quantity: number, authToken?: string | null) =>
+    apiRequest<{ cartItems: CartItemResponse[] }>('/api/cart/add', {
+      method: 'POST',
+      body: JSON.stringify({ userId, productId, quantity }),
+      authToken,
+    }),
+
+  updateQuantity: (cartItemId: string, quantity: number, authToken?: string | null) =>
+    apiRequest<{ cartItems: CartItemResponse[] }>(
+      `/api/cart/item/${encodeURIComponent(cartItemId)}?quantity=${quantity}`,
+      { method: 'PUT', authToken }
+    ),
+
+  removeItem: (cartItemId: string, authToken?: string | null) =>
+    apiRequest<{ cartItems: CartItemResponse[] }>(
+      `/api/cart/item/${encodeURIComponent(cartItemId)}`,
+      { method: 'DELETE', authToken }
+    ),
+
+  clearCart: (userId: string) =>
+    apiRequest<null>(`/api/cart/${userId}/clear`, { method: 'DELETE' }),
+};
+
+// ==================== WISHLIST (MongoDB Atlas qua BE) ====================
+export type WishlistProduct = {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  discount?: number;
+  image: string;
+  category?: string;
+  description?: string;
+  stock?: number;
+  avgRating?: number;
+  reviewCount?: number;
+  flashSaleEnd?: string;
+  flashSalePrice?: number;
+};
+
+export const wishlistAPI = {
+  getByUserId: (userId: string, authToken?: string | null) =>
+    apiRequest<{ products: WishlistProduct[] }>(`/api/wishlist/${userId}`, { method: 'GET', authToken }),
+
+  addProduct: (userId: string, productId: string, authToken?: string | null) =>
+    apiRequest<{ products: WishlistProduct[] }>('/api/wishlist/add', {
+      method: 'POST',
+      body: JSON.stringify({ userId, productId }),
+      authToken,
+    }),
+
+  removeProduct: (userId: string, productId: string, authToken?: string | null) =>
+    apiRequest<{ products: WishlistProduct[] }>('/api/wishlist/remove', {
+      method: 'DELETE',
+      body: JSON.stringify({ userId, productId }),
+      authToken,
+    }),
 };
 
 // ==================== REVIEWS ====================
