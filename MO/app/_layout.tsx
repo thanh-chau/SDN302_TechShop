@@ -22,6 +22,8 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="cart" options={{ headerShown: false, title: 'Giỏ hàng' }} />
+          <Stack.Screen name="orders" options={{ headerShown: false, title: 'Đơn hàng của tôi' }} />
+          <Stack.Screen name="profile" options={{ headerShown: false, title: 'Thông tin tài khoản' }} />
           <Stack.Screen name="wishlist" options={{ headerShown: false, title: 'Sản phẩm yêu thích' }} />
           <Stack.Screen name="admin" options={{ headerShown: false, title: 'Trang quản trị' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

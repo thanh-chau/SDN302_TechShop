@@ -13,7 +13,7 @@ import { AuthModal } from '@/components/techshop/AuthModal';
 import type { Product } from '@/types/product';
 import type { Category } from '@/types/product';
 import type { UserInfo } from '@/components/techshop/AuthModal';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { getCategoryDisplayName } from '@/utils/categoryDisplay';
 import Toast from 'react-native-toast-message';
 import { useUser } from '@/contexts/UserContext';
@@ -75,6 +75,16 @@ export default function HomeScreen() {
     if (user?.id) loadCartCount();
     else setCartCount(0);
   }, [user?.id, loadCartCount]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        loadCartCount();
+      } else {
+        setCartCount(0);
+      }
+    }, [user?.id, loadCartCount])
+  );
 
   /** Load wishlist từ MongoDB Atlas (BE) khi đổi user */
   useEffect(() => {
@@ -148,7 +158,7 @@ export default function HomeScreen() {
         (p) =>
           p.flashSaleEnd &&
           new Date(p.flashSaleEnd) > new Date() &&
-          (p.discount > 0 || p.flashSalePrice)
+          ((p.discount ?? 0) > 0 || p.flashSalePrice)
       ),
     [products]
   );
@@ -240,10 +250,10 @@ export default function HomeScreen() {
         user={user}
         onLoginClick={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
-        onProfileClick={() => Toast.show({ type: 'info', text1: 'Tính năng đang cập nhật', visibilityTime: 2000 })}
-        onOrdersClick={() => Toast.show({ type: 'info', text1: 'Đơn hàng — tính năng đang cập nhật', visibilityTime: 2000 })}
+        onProfileClick={() => router.push('/profile')}
+        onOrdersClick={() => router.push('/orders')}
         onWishlistClick={() => router.push('/wishlist')}
-        onSettingsClick={() => Toast.show({ type: 'info', text1: 'Tính năng đang cập nhật', visibilityTime: 2000 })}
+        onSettingsClick={() => router.push('/profile')}
         onAdminClick={() => router.push('/admin')}
         onCategoryClick={handleCategoryClick}
         activeCategoryId={selectedCategoryId}
