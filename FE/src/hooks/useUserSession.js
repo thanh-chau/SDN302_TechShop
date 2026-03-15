@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 
+/** Chuẩn hóa role từ BE/localStorage (có thể là "Admin", "ADMIN"...) về lowercase. */
+function normalizeRole(role) {
+  if (role == null || typeof role !== "string") return "buyer";
+  return role.trim().toLowerCase();
+}
+
 function getRoleView(role) {
-  if (role === "admin") return "admin";
-  if (role === "staff") return "staff";
+  const r = normalizeRole(role);
+  if (r === "admin") return "admin";
+  if (r === "staff") return "staff";
   return "shop";
 }
 
@@ -15,16 +22,20 @@ export function useUserSession() {
     if (!savedUser) return;
     try {
       const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setViewMode(getRoleView(userData.role));
+      const role = normalizeRole(userData.role);
+      const normalizedUser = { ...userData, role };
+      setUser(normalizedUser);
+      setViewMode(getRoleView(role));
     } catch {
       console.error("Failed to parse user data");
     }
   }, []);
 
   const handleLogin = (userInfo) => {
-    setUser(userInfo);
-    setViewMode(getRoleView(userInfo.role));
+    const role = normalizeRole(userInfo?.role);
+    const normalizedUser = { ...userInfo, role };
+    setUser(normalizedUser);
+    setViewMode(getRoleView(role));
   };
 
   const handleLogout = () => {

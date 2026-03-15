@@ -28,12 +28,15 @@ export interface UserInfo {
 function buildUserInfo(res: { user?: unknown; token: string }): UserInfo {
   const u = (res.user || res) as { id?: string; _id?: string; name?: string; fullName?: string; email?: string; role?: string };
   const name = u.name || u.fullName || u.email || '';
+  const rawId = u.id ?? u._id;
+  const id = rawId != null ? String(rawId) : undefined;
+  const token = res.token != null && res.token !== '' ? String(res.token) : '';
   return {
-    id: u.id || u._id,
+    id,
     name,
     email: u.email,
     role: (u.role || 'buyer').toLowerCase(),
-    token: res.token,
+    token,
   };
 }
 

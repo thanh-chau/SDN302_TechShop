@@ -1,6 +1,21 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 
+/** Thêm imageUrl vào từng cart item từ Product.images[0] */
+const withProductImages = async (items) => {
+  if (!items?.length) return items;
+  const ids = items.map((i) => i.productId).filter(Boolean);
+  const products = await Product.find({ _id: { $in: ids } }).select("images").lean();
+  const imageMap = {};
+  products.forEach((p) => {
+    imageMap[p._id.toString()] = p.images?.[0] || null;
+  });
+  return items.map((item) => ({
+    ...item,
+    imageUrl: imageMap[item.productId] || null,
+  }));
+};
+
 const getCart = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -8,13 +23,14 @@ const getCart = async (req, res) => {
     if (!cart) {
       cart = await Cart.create({ userId, items: [] });
     }
-    const cartItems = (cart.items || []).map((item) => ({
-      id: item._id,
+    let cartItems = (cart.items || []).map((item) => ({
+      id: String(item._id),
       productId: String(item.productId),
       productName: item.productName || "",
       priceAtTime: item.priceAtTime,
       quantity: item.quantity,
     }));
+    cartItems = await withProductImages(cartItems);
     res.json({ cartItems });
   } catch (err) {
     console.error("Cart get error:", err);
@@ -55,13 +71,14 @@ const addItem = async (req, res) => {
       });
     }
     await cart.save();
-    const cartItems = cart.items.map((item) => ({
-      id: item._id,
+    let cartItems = cart.items.map((item) => ({
+      id: String(item._id),
       productId: String(item.productId),
       productName: item.productName,
       priceAtTime: item.priceAtTime,
       quantity: item.quantity,
     }));
+    cartItems = await withProductImages(cartItems);
     res.json({ cartItems });
   } catch (err) {
     console.error("Cart add error:", err);
@@ -82,13 +99,14 @@ const updateItemQuantity = async (req, res) => {
     if (!item) return res.status(404).json({ message: "Không tìm thấy mục giỏ hàng" });
     item.quantity = quantity;
     await cart.save();
-    const cartItems = cart.items.map((i) => ({
-      id: i._id,
+    let cartItems = cart.items.map((i) => ({
+      id: String(i._id),
       productId: String(i.productId),
       productName: i.productName,
       priceAtTime: i.priceAtTime,
       quantity: i.quantity,
     }));
+    cartItems = await withProductImages(cartItems);
     res.json({ cartItems });
   } catch (err) {
     console.error("Cart update quantity error:", err);
@@ -103,13 +121,14 @@ const removeItem = async (req, res) => {
     if (!cart) return res.status(404).json({ message: "Không tìm thấy mục giỏ hàng" });
     cart.items.pull(itemId);
     await cart.save();
-    const cartItems = cart.items.map((i) => ({
-      id: i._id,
+    let cartItems = cart.items.map((i) => ({
+      id: String(i._id),
       productId: String(i.productId),
       productName: i.productName,
       priceAtTime: i.priceAtTime,
       quantity: i.quantity,
     }));
+    cartItems = await withProductImages(cartItems);
     res.json({ cartItems });
   } catch (err) {
     console.error("Cart remove item error:", err);

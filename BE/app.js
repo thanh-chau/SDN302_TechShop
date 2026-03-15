@@ -19,6 +19,7 @@ var uploadRouter = require("./routes/upload");
 var productsRouter = require("./routes/products");
 var categoriesRouter = require("./routes/categories");
 var cartRouter = require("./routes/cart");
+var wishlistRouter = require("./routes/wishlist");
 var ordersRouter = require("./routes/orders");
 var reviewsRouter = require("./routes/reviews");
 var playersRouter = require("./routes/players");
@@ -68,7 +69,6 @@ app.set("view engine", "jade");
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRouter);
@@ -76,9 +76,20 @@ app.use("/api/files", uploadRouter);
 app.use("/api/products", productsRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/cart", cartRouter);
+app.use("/api/wishlist", wishlistRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/reviews", reviewsRouter);
 app.use("/api/players", playersRouter);
+
+// Gộp tunnel: khi SERVE_FE=1, BE vừa serve API vừa serve FE build → chỉ cần 1 ngrok đến port 5000
+const serveFe = process.env.SERVE_FE === "1" || process.env.SERVE_FE === "true";
+if (serveFe) {
+  const feDist = path.join(__dirname, "..", "FE", "dist");
+  app.use(express.static(feDist));
+  app.get("*", (req, res) => res.sendFile(path.join(feDist, "index.html")));
+} else {
+  app.use("/", indexRouter);
+}
 
 app.use(notFound);
 app.use(errorHandler);

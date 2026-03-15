@@ -24,7 +24,7 @@ import {
 import toast from "react-hot-toast";
 import { productAPI, orderAPI, userAPI, fileAPI, authAPI } from "../utils/api";
 
-export function AdminPage({ user, onLogout }) {
+export function AdminPage({ user, onLogout, onBackToShop }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -34,6 +34,8 @@ export function AdminPage({ user, onLogout }) {
     totalOrders: 0,
     totalProducts: 0,
     totalUsers: 0,
+    todayRevenue: 0,
+    pendingOrdersCount: 0,
   });
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -136,19 +138,32 @@ export function AdminPage({ user, onLogout }) {
   const loadOrders = async () => {
     try {
       const data = await orderAPI.getAll();
-      setOrders(data || []);
+      const list = Array.isArray(data) ? data : [];
+      setOrders(list);
 
-      // Calculate stats
-      const completedOrders = data.filter((o) => o.status === "completed");
+      const today = new Date().toDateString();
+      const completedOrders = list.filter((o) => o.status === "completed");
       const totalRevenue = completedOrders.reduce(
-        (sum, o) => sum + (o.totalAmount || 0),
+        (sum, o) => sum + (o.totalAmount || o.total || 0),
         0,
       );
+      const todayCompleted = list.filter(
+        (o) =>
+          o.status === "completed" &&
+          new Date(o.createdAt || o.orderDate || 0).toDateString() === today,
+      );
+      const todayRevenue = todayCompleted.reduce(
+        (sum, o) => sum + (o.totalAmount || o.total || 0),
+        0,
+      );
+      const pendingOrdersCount = list.filter((o) => o.status === "pending").length;
 
       setStats((prev) => ({
         ...prev,
         totalRevenue,
-        totalOrders: data.length,
+        totalOrders: list.length,
+        todayRevenue,
+        pendingOrdersCount,
       }));
     } catch (error) {
       console.error("Failed to load orders:", error);
@@ -453,6 +468,15 @@ export function AdminPage({ user, onLogout }) {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-600">Xin chào, {user?.name}</span>
+              {onBackToShop && (
+                <button
+                  onClick={onBackToShop}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Về trang mua sắm</span>
+                </button>
+              )}
               <button
                 onClick={onLogout}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
@@ -517,10 +541,10 @@ export function AdminPage({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs: Dashboard, Sản phẩm, Đơn hàng, Người dùng, Flash Sale */}
         <div className="bg-white rounded-xl shadow-sm mb-6">
-          <div className="border-b">
-            <div className="flex gap-4 px-6">
+          <div className="border-b overflow-x-auto">
+            <div className="flex gap-4 px-6 min-w-max">
               <button
                 onClick={() => setActiveTab("dashboard")}
                 className={`py-4 px-4 font-semibold border-b-2 transition-colors ${
@@ -594,21 +618,28 @@ export function AdminPage({ user, onLogout }) {
             {activeTab === "dashboard" && (
               <div className="space-y-6">
                 <h2 className="text-xl font-bold">Tổng quan hệ thống</h2>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl text-white">
                     <TrendingUp className="w-8 h-8 mb-4" />
                     <h3 className="text-lg font-semibold mb-2">
                       Doanh thu hôm nay
                     </h3>
                     <p className="text-3xl font-bold">
-                      {stats.totalRevenue.toLocaleString("vi-VN")} ₫
+                      {(stats.todayRevenue ?? 0).toLocaleString("vi-VN")} ₫
                     </p>
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl text-white">
                     <ShoppingBag className="w-8 h-8 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Đơn hàng mới</h3>
+                    <h3 className="text-lg font-semibold mb-2">Đơn hàng chờ xử lý</h3>
                     <p className="text-3xl font-bold">
-                      {orders.filter((o) => o.status === "pending").length}
+                      {stats.pendingOrdersCount ?? orders.filter((o) => o.status === "pending").length}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-xl text-white sm:col-span-2">
+                    <DollarSign className="w-8 h-8 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Tổng doanh thu (đã hoàn thành)</h3>
+                    <p className="text-3xl font-bold">
+                      {(stats.totalRevenue ?? 0).toLocaleString("vi-VN")} ₫
                     </p>
                   </div>
                 </div>

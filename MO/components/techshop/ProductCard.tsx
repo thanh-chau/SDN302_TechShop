@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Product } from '@/types/product';
+
+const PLACEHOLDER_IMAGE = 'https://placehold.co/400x400?text=No+Image';
 
 const STAR_COLOR = '#facc15';
 const STAR_EMPTY = '#d1d5db';
@@ -48,9 +50,11 @@ export function ProductCard({
   onToggleWishlist,
   fixedWidth,
 }: ProductCardProps) {
+  const [imageError, setImageError] = useState(false);
   const rating = product.avgRating ?? product.rating ?? 0;
   const count = product.reviewCount ?? product.reviews ?? 0;
   const cardStyle = fixedWidth != null ? [styles.card, { width: fixedWidth, maxWidth: fixedWidth }] : styles.card;
+  const showPlaceholder = !product.image || imageError;
 
   return (
     <View style={cardStyle}>
@@ -60,12 +64,17 @@ export function ProductCard({
             <Text style={styles.badgeText}>-{product.discount}%</Text>
           </View>
         ) : null}
-        {product.image ? (
-          <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
-        ) : (
+        {showPlaceholder ? (
           <View style={styles.imagePlaceholder}>
             <Ionicons name="image-outline" size={40} color="#d1d5db" />
           </View>
+        ) : (
+          <Image
+            source={{ uri: product.image }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+          />
         )}
         {onToggleWishlist ? (
           <Pressable

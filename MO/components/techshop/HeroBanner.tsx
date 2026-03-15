@@ -6,12 +6,14 @@ import {
   Pressable,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Product } from '@/types/product';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const AUTO_SWITCH_MS = 3000;
+const BANNER_PADDING = 20;
+const AUTO_SWITCH_MS = 4000;
 const DEFAULT_HERO_IMAGE =
   'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&h=500&fit=crop';
 
@@ -55,252 +57,323 @@ export function HeroBanner({
     : (current as Product).image || DEFAULT_HERO_IMAGE;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.inner}>
-        <View style={styles.content}>
-          <View style={styles.flameBadge}>
-            <Ionicons name="flame" size={18} color="#fff" />
-            <Text style={styles.flameText}>FLASH SALE</Text>
-          </View>
-          {isEmpty ? (
-            <>
-              <Text style={styles.title}>Săn sale sắp diễn ra</Text>
-              <Text style={styles.subtitle}>
-                Chưa có flash sale. Quay lại sau nhé!
-              </Text>
-              <View style={styles.cta}>
-                <Text style={styles.ctaText}>TechShop — Ưu đãi sắp lên sóng</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.titleProduct} numberOfLines={2}>
-                {(current as Product).name}
-              </Text>
-              <View style={styles.priceRow}>
-                <Text style={styles.price}>
-                  {(current as Product).price?.toLocaleString('vi-VN')} ₫
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        {/* Decorative circles */}
+        <View style={[styles.deco, styles.deco1]} pointerEvents="none" />
+        <View style={[styles.deco, styles.deco2]} pointerEvents="none" />
+        <View style={[styles.deco, styles.deco3]} pointerEvents="none" />
+
+        <View style={styles.inner}>
+          <View style={styles.content}>
+            <View style={styles.flameBadge}>
+              <Ionicons name="flame" size={16} color="#b45309" />
+              <Text style={styles.flameText}>FLASH SALE</Text>
+            </View>
+            {isEmpty ? (
+              <>
+                <Text style={styles.title}>Săn sale sắp diễn ra</Text>
+                <Text style={styles.subtitle}>
+                  Ưu đãi đặc biệt sắp lên sóng. Theo dõi để không bỏ lỡ!
                 </Text>
-                {(current as Product).originalPrice != null && (
-                  <Text style={styles.originalPrice}>
-                    {(current as Product).originalPrice?.toLocaleString('vi-VN')} ₫
-                  </Text>
-                )}
-                {(current as Product).discount != null && (current as Product).discount! > 0 && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>
-                      -{(current as Product).discount}%
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.buyBtn, pressed && styles.buyBtnPressed]}
-                onPress={() => {
-                  if (!isEmpty && onProductClick) onProductClick(current as Product);
-                  else if (!isEmpty && onAddToCart) onAddToCart(current as Product);
-                }}
-              >
-                <Ionicons name="bag-outline" size={20} color="#dc2626" />
-                <Text style={styles.buyBtnText}>Mua ngay</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-        <View style={styles.imageWrap}>
-          <View style={styles.imageBg} />
-          <View style={styles.imageInner}>
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-            {isEmpty && (
-              <View style={styles.overlay}>
-                <View style={styles.overlayIcon}>
-                  <Ionicons name="flame" size={48} color="rgba(255,255,255,0.9)" />
+                <View style={styles.cta}>
+                  <Text style={styles.ctaText}>TechShop — Giá tốt mỗi ngày</Text>
                 </View>
-              </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.titleProduct} numberOfLines={2}>
+                  {(current as Product).name}
+                </Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.price}>
+                    {(current as Product).price?.toLocaleString('vi-VN')} ₫
+                  </Text>
+                  {(current as Product).originalPrice != null && (
+                    <Text style={styles.originalPrice}>
+                      {(current as Product).originalPrice?.toLocaleString('vi-VN')} ₫
+                    </Text>
+                  )}
+                  {(current as Product).discount != null && (current as Product).discount! > 0 && (
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountText}>
+                        -{(current as Product).discount}%
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.buyBtn, pressed && styles.buyBtnPressed]}
+                  onPress={() => {
+                    if (!isEmpty && onProductClick) onProductClick(current as Product);
+                    else if (!isEmpty && onAddToCart) onAddToCart(current as Product);
+                  }}
+                >
+                  <Ionicons name="bag" size={18} color="#b91c1c" />
+                  <Text style={styles.buyBtnText}>Mua ngay</Text>
+                </Pressable>
+              </>
             )}
           </View>
-        </View>
-      </View>
-
-      {total > 1 && (
-        <>
-          <Pressable
-            style={[styles.arrow, styles.arrowLeft]}
-            onPress={() => go(-1)}
-            accessibilityLabel="Trước"
-          >
-            <Ionicons name="chevron-back" size={24} color="#fff" />
-          </Pressable>
-          <Pressable
-            style={[styles.arrow, styles.arrowRight]}
-            onPress={() => go(1)}
-            accessibilityLabel="Sau"
-          >
-            <Ionicons name="chevron-forward" size={24} color="#fff" />
-          </Pressable>
-          <View style={styles.dots}>
-            {items.map((_, i) => (
-              <Pressable
-                key={i}
-                style={[styles.dot, i === index && styles.dotActive]}
-                onPress={() => setIndex(i)}
-                accessibilityLabel={`Slide ${i + 1}`}
+          <View style={styles.imageWrap}>
+            <View style={styles.imageCard}>
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.image}
+                resizeMode="cover"
               />
-            ))}
+              {isEmpty && (
+                <View style={styles.overlay}>
+                  <View style={styles.overlayIcon}>
+                    <Ionicons name="flame-outline" size={40} color="rgba(255,255,255,0.95)" />
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
-        </>
-      )}
+        </View>
 
-      <View style={[styles.blur, styles.blurTop]} pointerEvents="none" />
-      <View style={[styles.blur, styles.blurBottom]} pointerEvents="none" />
+        {total > 1 && (
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.arrow, styles.arrowLeft, pressed && styles.arrowPressed]}
+              onPress={() => go(-1)}
+              accessibilityLabel="Trước"
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.arrow, styles.arrowRight, pressed && styles.arrowPressed]}
+              onPress={() => go(1)}
+              accessibilityLabel="Sau"
+            >
+              <Ionicons name="chevron-forward" size={22} color="#fff" />
+            </Pressable>
+            <View style={styles.dots}>
+              {items.map((_, i) => (
+                <Pressable
+                  key={i}
+                  style={[styles.dot, i === index && styles.dotActive]}
+                  onPress={() => setIndex(i)}
+                  accessibilityLabel={`Slide ${i + 1}`}
+                />
+              ))}
+            </View>
+          </>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+      },
+      android: { elevation: 8 },
+    }),
+  },
   container: {
     position: 'relative',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#b91c1c',
     overflow: 'hidden',
+    borderRadius: 20,
+    minHeight: 300,
+  },
+  deco: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  deco1: {
+    width: 180,
+    height: 180,
+    top: -60,
+    right: -50,
+  },
+  deco2: {
+    width: 120,
+    height: 120,
+    bottom: -30,
+    left: -40,
+  },
+  deco3: {
+    width: 80,
+    height: 80,
+    top: '40%',
+    right: 20,
   },
   inner: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-    minHeight: 280,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: BANNER_PADDING,
+    paddingTop: 22,
+    paddingBottom: 52,
+    zIndex: 5,
   },
   content: {
-    width: '100%',
-    maxWidth: SCREEN_WIDTH * 0.55,
+    width: '52%',
+    maxWidth: SCREEN_WIDTH * 0.5,
     zIndex: 10,
   },
   flameBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(251,191,36,0.95)',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 12,
+    borderRadius: 20,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   flameText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#1f2937',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 6,
+    ...Platform.select({
+      ios: { textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+      android: {},
+    }),
   },
   titleProduct: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 22,
+    ...Platform.select({
+      ios: { textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+      android: {},
+    }),
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.95)',
-    marginBottom: 12,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 18,
+    marginBottom: 10,
   },
   cta: {
-    marginTop: 4,
+    marginTop: 2,
   },
   ctaText: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '600',
     alignSelf: 'flex-start',
+    overflow: 'hidden',
   },
   priceRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'baseline',
-    gap: 12,
-    marginBottom: 12,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
   },
   price: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#fff',
+    ...Platform.select({
+      ios: { textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1 },
+      android: {},
+    }),
   },
   originalPrice: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.75)',
     textDecorationLine: 'line-through',
   },
   discountBadge: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    paddingHorizontal: 10,
+    backgroundColor: '#fbbf24',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   discountText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#1f2937',
+    fontSize: 11,
+    fontWeight: '800',
   },
   buyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     alignSelf: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: { elevation: 4 },
+    }),
   },
   buyBtnPressed: {
-    opacity: 0.95,
+    opacity: 0.92,
+    transform: [{ scale: 0.98 }],
   },
   buyBtnText: {
-    color: '#dc2626',
-    fontWeight: '700',
-    fontSize: 15,
+    color: '#b91c1c',
+    fontWeight: '800',
+    fontSize: 14,
   },
   imageWrap: {
-    position: 'relative',
-    width: '100%',
-    maxWidth: SCREEN_WIDTH * 0.45,
-    aspectRatio: 4 / 3,
-    maxHeight: 220,
+    width: '44%',
+    maxWidth: SCREEN_WIDTH * 0.42,
+    aspectRatio: 1,
+    minHeight: 140,
+    maxHeight: 180,
     alignSelf: 'center',
-    marginTop: 12,
+    marginTop: 4,
   },
-  imageBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    transform: [{ rotate: '2deg' }],
-  },
-  imageInner: {
+  imageCard: {
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.15)',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.25)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
   },
   image: {
     width: '100%',
@@ -308,61 +381,51 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   overlayIcon: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: 14,
     borderRadius: 999,
   },
   arrow: {
     position: 'absolute',
-    top: '50%',
-    marginTop: -22,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    top: '42%',
+    marginTop: -24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
   },
-  arrowLeft: { left: 12 },
-  arrowRight: { right: 12 },
+  arrowPressed: {
+    opacity: 0.8,
+  },
+  arrowLeft: { left: 8 },
+  arrowRight: { right: 8 },
   dots: {
     position: 'absolute',
-    bottom: 16,
-    left: '50%',
-    marginLeft: -40,
+    bottom: 14,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
     zIndex: 20,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.45)',
   },
   dotActive: {
+    width: 18,
+    borderRadius: 3,
     backgroundColor: '#fff',
-    transform: [{ scale: 1.25 }],
-  },
-  blur: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  blurTop: {
-    top: -100,
-    right: -80,
-  },
-  blurBottom: {
-    bottom: -100,
-    left: -80,
   },
 });
