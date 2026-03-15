@@ -1,6 +1,7 @@
 // API Configuration and Service Layer
-// Dùng relative URL để request qua Vite proxy (/api -> backend local), không gọi API ngoài
-const API_BASE_URL = "";
+// Dev: để trống để dùng Vite proxy (/api -> backend local)
+// Prod: cấu hình VITE_API_BASE_URL để gọi BE đã deploy, ví dụ https://your-be.vercel.app
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
 
 // Helper function to get auth token from localStorage
 const getAuthToken = () => {
