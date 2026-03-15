@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const userSchema = mongoose.Schema(
   {
@@ -24,12 +24,12 @@ const userSchema = mongoose.Schema(
         return !this.googleId;
       },
     },
-    phone: { type: String, default: '' },
-    address: { type: String, default: '' },
+    phone: { type: String, default: "" },
+    address: { type: String, default: "" },
     role: {
       type: String,
-      enum: ['admin', 'staff', 'buyer'],
-      default: 'buyer',
+      enum: ["admin", "staff", "buyer"],
+      default: "buyer",
     },
     isActive: { type: Boolean, default: true },
     resetPasswordToken: String,
@@ -37,7 +37,7 @@ const userSchema = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
@@ -48,12 +48,12 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.pre('save', async function () {
-  if (!this.isModified('password') || !this.password) return;
+userSchema.pre("save", async function () {
+  if (!this.isModified("password") || !this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 module.exports = User;

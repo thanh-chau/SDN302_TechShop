@@ -43,7 +43,7 @@ function logApi(message: string, detail?: unknown): void {
   }
 }
 
-export const getStoredUser = async (): Promise<{ token: string; name?: string; email?: string; role?: string; id?: string } | null> => {
+export const getStoredUser = async (): Promise<{ token: string; name?: string; email?: string; role?: string; id?: string; phone?: string; address?: string } | null> => {
   try {
     const raw = await AsyncStorage.getItem(USER_KEY);
     if (!raw) return null;
@@ -56,7 +56,7 @@ export const getStoredUser = async (): Promise<{ token: string; name?: string; e
     const id = parsed.id ?? parsed._id;
     const idStr = id != null ? String(id) : undefined;
     const role = parsed.role != null ? String(parsed.role).trim().toLowerCase() : undefined;
-    return { ...parsed, token, id: idStr, role: role || 'buyer' } as { token: string; name?: string; email?: string; role?: string; id?: string };
+    return { ...parsed, token, id: idStr, role: role || 'buyer' } as { token: string; name?: string; email?: string; role?: string; id?: string; phone?: string; address?: string };
   } catch {
     return null;
   }
@@ -145,7 +145,10 @@ const apiRequest = async <T = unknown>(endpoint: string, options: ApiOptions = {
     } else if (res.status === 401) {
       // Không xóa session từ đây — lỗi 401 có thể do ngrok chưa gửi được header, không liên quan đến session lưu trên máy
     }
-    logApi('BE trả lỗi HTTP.', { url, status: res.status, message: msg });
+    const isExpectedNoToken401 = res.status === 401 && /no token provided/i.test(msg);
+    if (!isExpectedNoToken401) {
+      logApi('BE trả lỗi HTTP.', { url, status: res.status, message: msg });
+    }
     throw new Error(msg);
   }
 
@@ -187,7 +190,8 @@ export const authAPI = {
       body: JSON.stringify({ token, newPassword }),
     }),
 
-  getMe: () => apiRequest<{ user: unknown }>('/api/auth/me', { method: 'GET' }),
+  getMe: (authToken?: string | null) =>
+    apiRequest<{ user: unknown }>('/api/auth/me', { method: 'GET', authToken }),
 };
 
 // ==================== CATEGORIES (giống FE: GET /api/categories, BE đọc từ MongoDB Atlas) ====================
@@ -211,6 +215,42 @@ export const productAPI = {
 
 // ==================== ORDERS (admin: getAll, updateStatus, delete) ====================
 export const orderAPI = {
+  create: (
+    userId: string,
+    shippingName: string,
+    shippingPhone: string,
+    shippingAddress: string,
+    paymentMethod: 'cod' | 'momo' = 'cod',
+    note = '',
+    authToken?: string | null
+  ) =>
+    apiRequest<OrderItemResponse>('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        shippingName,
+        shippingPhone,
+        shippingAddress,
+        paymentMethod,
+        note,
+      }),
+      authToken,
+    }),
+  getByUserId: (userId: string, authToken?: string | null) =>
+    apiRequest<OrderItemResponse[]>(`/api/orders/user/${encodeURIComponent(userId)}`, {
+      method: 'GET',
+      authToken,
+    }),
+  getById: (orderId: string, authToken?: string | null) =>
+    apiRequest<OrderItemResponse>(`/api/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
+      authToken,
+    }),
+  cancel: (orderId: string, authToken?: string | null) =>
+    apiRequest<{ id: string; status: string }>(`/api/orders/${encodeURIComponent(orderId)}/cancel`, {
+      method: 'PUT',
+      authToken,
+    }),
   getAll: (authToken?: string | null) =>
     apiRequest<unknown[]>('/api/orders', { method: 'GET', authToken }),
   updateStatus: (orderId: string, status: string, authToken?: string | null) =>
@@ -223,6 +263,24 @@ export const orderAPI = {
 export const userAPI = {
   getAll: (authToken?: string | null) =>
     apiRequest<unknown[]>('/api/auth/users', { method: 'GET', authToken }),
+  updateProfile: (
+    data: { name?: string; phone?: string; address?: string },
+    authToken?: string | null
+  ) =>
+    apiRequest<{ message: string; user: { id: string; name: string; email: string; role: string; phone?: string; address?: string } }>(
+      '/api/auth/profile',
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        authToken,
+      }
+    ),
+  changePassword: (currentPassword: string, newPassword: string, authToken?: string | null) =>
+    apiRequest<{ message: string }>('/api/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+      authToken,
+    }),
 };
 
 // ==================== CART (giống FE: BE /api/cart, cần đăng nhập) ====================
@@ -233,6 +291,28 @@ export type CartItemResponse = {
   priceAtTime: number;
   quantity: number;
   imageUrl?: string | null;
+};
+
+export type OrderLineItem = {
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+};
+
+export type OrderItemResponse = {
+  id: string;
+  userId: string;
+  items: OrderLineItem[];
+  totalAmount: number;
+  status: 'pending' | 'processing' | 'shipping' | 'completed' | 'cancelled';
+  shippingName: string;
+  shippingPhone: string;
+  shippingAddress: string;
+  paymentMethod: 'cod' | 'momo';
+  paymentStatus: 'unpaid' | 'paid' | 'failed';
+  note?: string;
+  createdAt: string;
 };
 
 export const cartAPI = {
@@ -301,9 +381,26 @@ export const wishlistAPI = {
 
 // ==================== REVIEWS ====================
 export const reviewAPI = {
+  create: (
+    productId: string,
+    orderId: string,
+    rating: number,
+    comment: string,
+    authToken?: string | null
+  ) =>
+    apiRequest<{ message: string; review: Review }>('/api/reviews', {
+      method: 'POST',
+      body: JSON.stringify({ productId, orderId, rating, comment }),
+      authToken,
+    }),
   getByProduct: (productId: string) =>
     apiRequest<{ reviews: Review[]; avgRating: number; total: number }>(
       `/api/reviews/product/${productId}`,
       { method: 'GET' }
+    ),
+  checkReviewed: (productId: string, orderId: string, authToken?: string | null) =>
+    apiRequest<{ reviewed: boolean }>(
+      `/api/reviews/check?productId=${encodeURIComponent(productId)}&orderId=${encodeURIComponent(orderId)}`,
+      { method: 'GET', authToken }
     ),
 };

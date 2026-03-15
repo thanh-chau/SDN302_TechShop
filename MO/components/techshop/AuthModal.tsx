@@ -222,7 +222,7 @@ export function AuthModal({ isOpen, onClose, onLogin }: AuthModalProps) {
                   {forgotSuccess && (
                     <View style={styles.successBox}>
                       <Text style={styles.successText}>
-                        Mã đặt lại đã được tạo. Bấm "Đặt lại mật khẩu" để nhập mã và mật khẩu mới.
+                        Mã đặt lại đã được tạo. Bấm &quot;Đặt lại mật khẩu&quot; để nhập mã và mật khẩu mới.
                       </Text>
                       {formData.resetToken ? (
                         <Text style={styles.tokenText} selectable>{formData.resetToken}</Text>
